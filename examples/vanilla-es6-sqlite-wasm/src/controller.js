@@ -16,21 +16,6 @@ export default class Controller {
 			completed INTEGER
 			)
 		`);
-		this.dumpSQL = () => {
-			const todos = this.sqlDatabase.exec({
-				sql: `SELECT * FROM todos`,
-				bind: {},
-				returnValue: "resultRows",
-				rowMode: "object",
-			});
-			todos.forEach((todo) => {todo.completed = !!todo.completed})
-			console.table(todos);
-		};
-		this.exec = (params) => {
-			const result = this.sqlDatabase.exec(params);
-			this.dumpSQL();
-			return result;
-		};
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -65,7 +50,7 @@ export default class Controller {
 	 * @param {!string} title Title of the new item
 	 */
 	addItem(title) {
-		this.exec({
+		this.sqlDatabase.exec({
 			sql: `INSERT INTO todos (id, title, completed) VALUES ($id, $title, $completed)`,
 			bind: {
 				$id: Date.now(),
@@ -85,7 +70,7 @@ export default class Controller {
 	 */
 	editItemSave(id, title) {
 		if (title.length) {
-			this.exec({
+			this.sqlDatabase.exec({
 				sql: `UPDATE todos SET title = $title WHERE id = $id`,
 				bind: { $id: id, $title: title },
 			});
@@ -114,7 +99,7 @@ export default class Controller {
 	 * @param {!number} id Item ID of item to remove
 	 */
 	removeItem(id) {
-		this.exec({
+		this.sqlDatabase.exec({
 			sql: `DELETE FROM todos WHERE id = $id`,
 			bind: { $id: id },
 		});
@@ -126,7 +111,7 @@ export default class Controller {
 	 * Remove all completed items.
 	 */
 	removeCompletedItems() {
-		this.exec(`DELETE FROM todos WHERE completed`);
+		this.sqlDatabase.exec(`DELETE FROM todos WHERE completed`);
 		this._filter();
 	}
 
@@ -137,7 +122,7 @@ export default class Controller {
 	 * @param {!boolean} completed Desired completed state
 	 */
 	toggleCompleted(id, completed) {
-		this.exec({
+		this.sqlDatabase.exec({
 			sql: `UPDATE todos SET completed = $completed WHERE id = $id`,
 			bind: { $id: id, $completed: completed },
 		});
@@ -150,7 +135,7 @@ export default class Controller {
 	 * @param {boolean} completed Desired completed state
 	 */
 	toggleAll(completed) {
-		const data = this.exec({
+		const data = this.sqlDatabase.exec({
 			sql: `SELECT id FROM todos WHERE completed = NOT $completed`,
 			bind: { $completed: completed },
 			returnValue: "resultRows",

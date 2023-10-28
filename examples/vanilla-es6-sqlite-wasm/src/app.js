@@ -19,3 +19,7 @@ const controller = new Controller(sqlDatabase, view);
 const setView = () => controller.setView(document.location.hash);
 setView();
 $on(window, 'hashchange', setView);
+
+// some debugging helpers
+window.execSQL = (sql) => console.table(sqlDatabase.selectObjects(sql));
+window.dumpTodos = () => window.select('SELECT * FROM todos');
