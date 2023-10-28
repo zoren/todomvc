@@ -17,14 +17,67 @@ export default class Controller {
 			)
 		`);
 
+		this.sqlDatabase.createFunction(
+			'insertedDeletedTriggerFunction',
+			(_ctxPtr, insertedOrDeleted, id, ...args) => {
+				console.log('insertedDeletedTriggerFunction', ...args)
+				if (insertedOrDeleted === 'deleted') {
+					this.view.removeItem(id);
+				}else if (insertedOrDeleted === 'inserted') {
+					this.view.clearNewTodo();
+				}
+				this._updateItemsFromRoute();
+				this._updateViewCounts();
+
+				return null
+			},
+			{ arity: 2,
+				deterministic: false,
+				directOnly: false,
+				innocuous: false
+			 },
+		)
+		this.sqlDatabase.exec(`
+		CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
+    BEGIN
+      SELECT insertedDeletedTriggerFunction('inserted', new.id);
+    END;
+
+		CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
+    BEGIN
+      SELECT insertedDeletedTriggerFunction('deleted', old.id);
+    END;
+		`)
+
+		this.sqlDatabase.createFunction(
+			'updatedTriggerFunction',
+			(_ctxPtr, id, oldTitle, newTitle, oldCompleted, newCompleted) => {
+				console.log('updatedTriggerFunction', { id, oldTitle, newTitle, oldCompleted, newCompleted })
+				if (oldTitle !== newTitle) this.view.editItemDone(id, newTitle);
+				if (oldCompleted !== newCompleted) this.view.setItemComplete(id, newCompleted);
+				this._updateItemsFromRoute();
+				this._updateViewCounts();
+
+				return null
+			},
+			{ arity: 5,
+				deterministic: false,
+				directOnly: false,
+				innocuous: false
+			 },
+		)
+		this.sqlDatabase.exec(`
+		CREATE TRIGGER IF NOT EXISTS update_trigger AFTER UPDATE ON todos
+    BEGIN
+      SELECT updatedTriggerFunction(new.id, old.title, new.title, old.completed, new.completed);
+    END;
+		`)
+
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
 		view.bindEditItemCancel(this.editItemCancel.bind(this));
 		view.bindRemoveItem(this.removeItem.bind(this));
-		view.bindToggleItem((id, completed) => {
-			this.toggleCompleted(id, completed);
-			this._filter();
-		});
+		view.bindToggleItem(this.toggleCompleted.bind(this));
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
 
@@ -40,7 +93,8 @@ export default class Controller {
 	setView(raw) {
 		const route = raw.replace(/^#\//, '');
 		this._activeRoute = route;
-		this._filter();
+		this._updateItemsFromRoute();
+		this._updateViewCounts();
 		this.view.updateFilterButtons(route);
 	}
 
@@ -58,8 +112,6 @@ export default class Controller {
 				$completed: false,
 			},
 		});
-		this.view.clearNewTodo();
-		this._filter(true);
 	}
 
 	/**
@@ -74,7 +126,6 @@ export default class Controller {
 				sql: `UPDATE todos SET title = $title WHERE id = $id`,
 				bind: { $id: id, $title: title },
 			});
-			this.view.editItemDone(id, title);
 		} else {
 			this.removeItem(id);
 		}
@@ -103,8 +154,6 @@ export default class Controller {
 			sql: `DELETE FROM todos WHERE id = $id`,
 			bind: { $id: id },
 		});
-		this._filter();
-		this.view.removeItem(id);
 	}
 
 	/**
@@ -112,7 +161,6 @@ export default class Controller {
 	 */
 	removeCompletedItems() {
 		this.sqlDatabase.exec(`DELETE FROM todos WHERE completed`);
-		this._filter(true);
 	}
 
 	/**
@@ -126,7 +174,6 @@ export default class Controller {
 			sql: `UPDATE todos SET completed = $completed WHERE id = $id`,
 			bind: { $id: id, $completed: completed },
 		});
-		this.view.setItemComplete(id, completed);
 	}
 
 	/**
@@ -144,28 +191,16 @@ export default class Controller {
 		for (let { id } of data) {
 			this.toggleCompleted(id, completed);
 		}
-		this._filter();
 	}
 
 	_itemsFromRoute = (route) => route === '' ?
 		this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos`) :
 		this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos WHERE completed = $completed`, { $completed: route === "completed" })
 
-	/**
-	 * Refresh the list based on the current route.
-	 *
-	 * @param {boolean} [force] Force a re-paint of the list
-	 */
-	_filter(force) {
-		const route = this._activeRoute;
-
-		if (force || this._lastActiveRoute !== '' || this._lastActiveRoute !== route) {
-			this.view.showItems(this._itemsFromRoute(route))
-		}
-
+	_updateViewCounts() {
 		const { total, active, completed } = this.sqlDatabase.selectObject(`
 		SELECT 
-		  (SELECT count(*) FROM todos) as total,
+			(SELECT count(*) FROM todos) as total,
 			(SELECT count(*) FROM todos WHERE NOT completed) as active,
 			(SELECT count(*) FROM todos WHERE completed) as completed`);
 
@@ -174,6 +209,17 @@ export default class Controller {
 
 		this.view.setCompleteAllCheckbox(completed === total);
 		this.view.setMainVisibility(total);
+	}
+
+	/**
+	 * Refresh the list based on the current route.
+	 */
+	_updateItemsFromRoute() {
+		const route = this._activeRoute;
+
+		if (this._lastActiveRoute !== '' || this._lastActiveRoute !== route) {
+			this.view.showItems(this._itemsFromRoute(route))
+		}
 
 		this._lastActiveRoute = route;
 	}
