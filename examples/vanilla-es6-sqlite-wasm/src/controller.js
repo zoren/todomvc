@@ -169,13 +169,13 @@ export default class Controller {
 		SELECT 
 		  (SELECT count(*) FROM todos) as total,
 			(SELECT count(*) FROM todos WHERE NOT completed) as active,
-			(SELECT count(*) FROM todos WHERE completed) as completed`); 
+			(SELECT count(*) FROM todos WHERE completed) as completed`);
 
 		this.view.setItemsLeft(active);
 		this.view.setClearCompletedButtonVisibility(completed);
 
 		this.view.setCompleteAllCheckbox(completed === total);
-		this.view.setMainVisibility(total); 
+		this.view.setMainVisibility(total);
 
 		this._lastActiveRoute = route;
 	}
