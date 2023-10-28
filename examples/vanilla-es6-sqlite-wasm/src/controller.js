@@ -20,14 +20,13 @@ export default class Controller {
 		this.sqlDatabase.createFunction(
 			'insertedDeletedTriggerFunction',
 			(_ctxPtr, insertedOrDeleted, id, ...args) => {
-				console.log('insertedDeletedTriggerFunction', ...args)
+				// console.log('insertedDeletedTriggerFunction', ...args)
 				if (insertedOrDeleted === 'deleted') {
 					this.view.removeItem(id);
 				}else if (insertedOrDeleted === 'inserted') {
 					this.view.clearNewTodo();
 				}
 				this._updateItemsFromRoute();
-				this._updateViewCounts();
 
 				return null
 			},
@@ -52,11 +51,10 @@ export default class Controller {
 		this.sqlDatabase.createFunction(
 			'updatedTriggerFunction',
 			(_ctxPtr, id, oldTitle, newTitle, oldCompleted, newCompleted) => {
-				console.log('updatedTriggerFunction', { id, oldTitle, newTitle, oldCompleted, newCompleted })
+				// console.log('updatedTriggerFunction', { id, oldTitle, newTitle, oldCompleted, newCompleted })
 				if (oldTitle !== newTitle) this.view.editItemDone(id, newTitle);
 				if (oldCompleted !== newCompleted) this.view.setItemComplete(id, newCompleted);
 				this._updateItemsFromRoute();
-				this._updateViewCounts();
 
 				return null
 			},
@@ -82,7 +80,6 @@ export default class Controller {
 		view.bindToggleAll(this.toggleAll.bind(this));
 
 		this._activeRoute = '';
-		this._lastActiveRoute = null;
 	}
 
 	/**
@@ -94,7 +91,6 @@ export default class Controller {
 		const route = raw.replace(/^#\//, '');
 		this._activeRoute = route;
 		this._updateItemsFromRoute();
-		this._updateViewCounts();
 		this.view.updateFilterButtons(route);
 	}
 
@@ -193,11 +189,16 @@ export default class Controller {
 		}
 	}
 
-	_itemsFromRoute = (route) => route === '' ?
-		this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos`) :
-		this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos WHERE completed = $completed`, { $completed: route === "completed" })
+	/**
+	 * Refresh the list based on the current route.
+	 */
+	_updateItemsFromRoute() {
+		const route = this._activeRoute;
+		const items = route === '' ?
+			this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos`) :
+			this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos WHERE completed = $completed`, { $completed: route === "completed" });
+		this.view.showItems(items)
 
-	_updateViewCounts() {
 		const { total, active, completed } = this.sqlDatabase.selectObject(`
 		SELECT 
 			(SELECT count(*) FROM todos) as total,
@@ -209,18 +210,5 @@ export default class Controller {
 
 		this.view.setCompleteAllCheckbox(completed === total);
 		this.view.setMainVisibility(total);
-	}
-
-	/**
-	 * Refresh the list based on the current route.
-	 */
-	_updateItemsFromRoute() {
-		const route = this._activeRoute;
-
-		if (this._lastActiveRoute !== '' || this._lastActiveRoute !== route) {
-			this.view.showItems(this._itemsFromRoute(route))
-		}
-
-		this._lastActiveRoute = route;
 	}
 }
