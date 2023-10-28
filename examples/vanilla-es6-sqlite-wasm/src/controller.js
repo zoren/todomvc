@@ -1,14 +1,11 @@
-import Store from './store.js';
 import View from './view.js';
 
 export default class Controller {
 	/**
-	 * @param  {!Store} store A Store instance
 	 * @param  {!Database} sqlDatabase A Database instance
 	 * @param  {!View} view A View instance
 	 */
-	constructor(store, sqlDatabase, view) {
-		this.store = store;
+	constructor(sqlDatabase, view) {
 		this.sqlDatabase = sqlDatabase;
 		this.view = view;
 		
