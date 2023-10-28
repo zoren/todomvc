@@ -147,6 +147,10 @@ export default class Controller {
 		this._filter();
 	}
 
+	_itemsFromRoute = (route) => route === '' ?
+		this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos`) :
+		this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos WHERE completed = $completed`, { $completed: route === "completed" })
+
 	/**
 	 * Refresh the list based on the current route.
 	 *
@@ -156,13 +160,7 @@ export default class Controller {
 		const route = this._activeRoute;
 
 		if (force || this._lastActiveRoute !== '' || this._lastActiveRoute !== route) {
-			let items
-			if (route === '') {
-				items = this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos`)
-			} else {
-				items = this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos WHERE completed = $completed`, { $completed: route === "completed" })
-			}
-			this.view.showItems(items)
+			this.view.showItems(this._itemsFromRoute(route))
 		}
 
 		const { total, active, completed } = this.sqlDatabase.selectObject(`
