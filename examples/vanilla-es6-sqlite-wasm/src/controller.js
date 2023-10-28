@@ -112,7 +112,7 @@ export default class Controller {
 	 */
 	removeCompletedItems() {
 		this.sqlDatabase.exec(`DELETE FROM todos WHERE completed`);
-		this._filter();
+		this._filter(true);
 	}
 
 	/**
