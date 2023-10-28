@@ -1,8 +1,8 @@
 {
   "private": true,
-  "scripts": {
-  },
+  "scripts": {},
   "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.43.2-build1",
     "todomvc-app-css": "^2.0.1",
     "todomvc-common": "^1.0.2"
   }
