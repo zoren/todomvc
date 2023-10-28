@@ -1,4 +1,3 @@
-import {emptyItemQuery} from './item.js';
 import Store from './store.js';
 import View from './view.js';
 
@@ -77,17 +76,8 @@ export default class Controller {
 				$completed: false,
 			},
 		});
-		this.store.insert(
-			{
-				id: Date.now(),
-				title,
-				completed: false,
-			},
-			() => {
-				this.view.clearNewTodo();
-				this._filter(true);
-			}
-		);
+		this.view.clearNewTodo();
+		this._filter(true);
 	}
 
 	/**
@@ -102,9 +92,7 @@ export default class Controller {
 				sql: `UPDATE todos SET title = $title WHERE id = $id`,
 				bind: { $id: id, $title: title },
 			});
-			this.store.update({ id, title }, () => {
-				this.view.editItemDone(id, title);
-			});
+			this.view.editItemDone(id, title);
 		} else {
 			this.removeItem(id);
 		}
@@ -116,17 +104,11 @@ export default class Controller {
 	 * @param {!number} id ID of the Item in edit
 	 */
 	editItemCancel(id) {
-		this.store.find({ id }, (data) => {
-			const title = data[0].title;
-			const sqlTitle = this.sqlDatabase.selectValue(
-				`SELECT title FROM todos WHERE id = $id`,
-				{ $id: id }
-			);
-			if (title !== sqlTitle) {
-				throw new Error(`title mismatch: ${title} !== ${sqlTitle}`);
-			}
-			this.view.editItemDone(id, title);
-		});
+		const title = this.sqlDatabase.selectValue(
+			`SELECT title FROM todos WHERE id = $id`,
+			{ $id: id }
+		);
+		this.view.editItemDone(id, title);
 	}
 
 	/**
@@ -139,10 +121,8 @@ export default class Controller {
 			sql: `DELETE FROM todos WHERE id = $id`,
 			bind: { $id: id },
 		});
-		this.store.remove({ id }, () => {
-			this._filter();
-			this.view.removeItem(id);
-		});
+		this._filter();
+		this.view.removeItem(id);
 	}
 
 	/**
@@ -150,7 +130,7 @@ export default class Controller {
 	 */
 	removeCompletedItems() {
 		this.exec(`DELETE FROM todos WHERE completed`);
-		this.store.remove({ completed: true }, this._filter.bind(this));
+		this._filter();
 	}
 
 	/**
@@ -164,9 +144,7 @@ export default class Controller {
 			sql: `UPDATE todos SET completed = $completed WHERE id = $id`,
 			bind: { $id: id, $completed: completed },
 		});
-		this.store.update({ id, completed }, () => {
-			this.view.setItemComplete(id, completed);
-		});
+		this.view.setItemComplete(id, completed);
 	}
 
 	/**
@@ -175,18 +153,15 @@ export default class Controller {
 	 * @param {boolean} completed Desired completed state
 	 */
 	toggleAll(completed) {
-		const todos = this.exec({
-			sql: `SELECT * FROM todos WHERE completed = not $completed`,
+		const data = this.exec({
+			sql: `SELECT id FROM todos WHERE completed = NOT $completed`,
 			bind: { $completed: completed },
 			returnValue: "resultRows",
 			rowMode: "object",
 		});
-		this.store.find({ completed: !completed }, (data) => {
-			for (let { id } of data) {
-				this.toggleCompleted(id, completed);
-			}
-		});
-
+		for (let { id } of data) {
+			this.toggleCompleted(id, completed);
+		}
 		this._filter();
 	}
 
@@ -199,37 +174,26 @@ export default class Controller {
 		const route = this._activeRoute;
 
 		if (force || this._lastActiveRoute !== '' || this._lastActiveRoute !== route) {
-			let sqlItems
-			if (route === "") {
-				sqlItems = this.sqlDatabase.selectObjects(`SELECT * FROM todos`)
+			let items
+			if (route === '') {
+				items = this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos`)
 			} else {
-				sqlItems = this.sqlDatabase.selectObjects(`SELECT * FROM todos WHERE completed = $completed`, { $completed: route === "completed" })
+				items = this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos WHERE completed = $completed`, { $completed: route === "completed" })
 			}
-			console.log("sqlItems", sqlItems);
-			/* jscs:disable disallowQuotedKeysInObjects */
-			this.store.find(
-				{
-					"": emptyItemQuery,
-					active: { completed: false },
-					completed: { completed: true },
-				}[route],
-				this.view.showItems.bind(this.view)
-			);
-			/* jscs:enable disallowQuotedKeysInObjects */
+			this.view.showItems(items)
 		}
 
-		const sqltotals = this.sqlDatabase.selectObject(`
+		const { total, active, completed } = this.sqlDatabase.selectObject(`
 		SELECT 
 		  (SELECT count(*) FROM todos) as total,
 			(SELECT count(*) FROM todos WHERE NOT completed) as active,
-			(SELECT count(*) FROM todos WHERE completed) as completed`);
-		this.store.count((total, active, completed) => {
-			this.view.setItemsLeft(active);
-			this.view.setClearCompletedButtonVisibility(completed);
+			(SELECT count(*) FROM todos WHERE completed) as completed`); 
 
-			this.view.setCompleteAllCheckbox(completed === total);
-			this.view.setMainVisibility(total);
-		});
+		this.view.setItemsLeft(active);
+		this.view.setClearCompletedButtonVisibility(completed);
+
+		this.view.setCompleteAllCheckbox(completed === total);
+		this.view.setMainVisibility(total); 
 
 		this._lastActiveRoute = route;
 	}
