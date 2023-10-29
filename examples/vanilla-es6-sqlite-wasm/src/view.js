@@ -146,7 +146,7 @@ export default class View {
 		const listItem = qs(`[data-id="${id}"]`);
 
 		const input = qs('input.edit', listItem);
-		listItem.removeChild(input);
+		if (input) listItem.removeChild(input);
 
 		listItem.classList.remove('editing');
 
