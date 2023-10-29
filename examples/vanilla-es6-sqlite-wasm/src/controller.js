@@ -18,34 +18,32 @@ export default class Controller {
 		`);
 
 		this.sqlDatabase.createFunction(
-			'insertedDeletedTriggerFunction',
-			(_ctxPtr, insertedOrDeleted, id) => {
-				if (insertedOrDeleted === 'deleted') {
-					this.view.removeItem(id);
-				}else if (insertedOrDeleted === 'inserted') {
-					this.view.clearNewTodo();
-				}
+			'insertedTriggerFunction',
+			(_ctxPtr, _id) => {
+				this.view.clearNewTodo();
 				this._updateItemsFromRoute();
-
-				return null
+				return null;
 			},
-			{ arity: 2,
+			{ arity: 1,
 				deterministic: false,
 				directOnly: false,
 				innocuous: false
 			 },
 		)
-		this.sqlDatabase.exec(`
-		CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
-    BEGIN
-      SELECT insertedDeletedTriggerFunction('inserted', new.id);
-    END;
-
-		CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
-    BEGIN
-      SELECT insertedDeletedTriggerFunction('deleted', old.id);
-    END;
-		`)
+		
+		this.sqlDatabase.createFunction(
+			'deletedTriggerFunction',
+			(_ctxPtr, id) => {
+				this.view.removeItem(id);
+				this._updateItemsFromRoute();
+				return null;
+			},
+			{ arity: 1,
+				deterministic: false,
+				directOnly: false,
+				innocuous: false
+			 },
+		)
 
 		this.sqlDatabase.createFunction(
 			'updatedTriggerFunction',
@@ -53,8 +51,7 @@ export default class Controller {
 				if (oldTitle !== newTitle) this.view.editItemDone(id, newTitle);
 				if (oldCompleted !== newCompleted) this.view.setItemComplete(id, newCompleted);
 				this._updateItemsFromRoute();
-
-				return null
+				return null;
 			},
 			{ arity: 5,
 				deterministic: false,
@@ -62,12 +59,23 @@ export default class Controller {
 				innocuous: false
 			 },
 		)
+
 		this.sqlDatabase.exec(`
+		CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
+    BEGIN
+      SELECT insertedTriggerFunction(new.id);
+    END;
+
+		CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
+    BEGIN
+      SELECT deletedTriggerFunction(old.id);
+    END;
+
 		CREATE TRIGGER IF NOT EXISTS update_trigger AFTER UPDATE ON todos
     BEGIN
       SELECT updatedTriggerFunction(new.id, old.title, new.title, old.completed, new.completed);
     END;
-		`)
+		`);
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
