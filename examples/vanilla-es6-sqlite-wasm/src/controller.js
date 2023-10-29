@@ -8,7 +8,7 @@ export default class Controller {
 	constructor(sqlDatabase, view) {
 		this.sqlDatabase = sqlDatabase;
 		this.view = view;
-		
+
 		this.sqlDatabase.exec(`
 		CREATE TABLE IF NOT EXISTS todos (
 			id INTEGER PRIMARY KEY,
@@ -35,12 +35,8 @@ export default class Controller {
 				pushBulkModeOperationOrUpdate({ type: "inserted", id });
 				return null;
 			},
-			{ arity: 3,
-				deterministic: false,
-				directOnly: false,
-				innocuous: false
-			 },
-		)
+			{ arity: 3, deterministic: false, directOnly: false, innocuous: false }
+		);
 
 		this.sqlDatabase.createFunction(
 			'deletedTriggerFunction',
@@ -49,12 +45,8 @@ export default class Controller {
 				pushBulkModeOperationOrUpdate({ type: "deleted", id });
 				return null;
 			},
-			{ arity: 1,
-				deterministic: false,
-				directOnly: false,
-				innocuous: false
-			 },
-		)
+			{ arity: 1, deterministic: false, directOnly: false, innocuous: false }
+		);
 
 		this.sqlDatabase.createFunction(
 			'updatedTriggerFunction',
@@ -66,12 +58,8 @@ export default class Controller {
 				}
 				return null;
 			},
-			{ arity: 5,
-				deterministic: false,
-				directOnly: false,
-				innocuous: false
-			 },
-		)
+			{ arity: 5, deterministic: false, directOnly: false, innocuous: false }
+		);
 
 		this.sqlDatabase.exec(`
 		CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
@@ -115,7 +103,7 @@ export default class Controller {
 						`SELECT id, title, completed FROM todos WHERE completed = $completed`,
 						{ $completed: route === 'completed' }
 				  );
-		this.view.showItems(items)
+		this.view.showItems(items);
 		this._updateViewCounts();
 		this.view.updateFilterButtons(route);
 	}
@@ -128,7 +116,7 @@ export default class Controller {
 	addItem(title) {
 		this.sqlDatabase.exec({
 			sql: `INSERT INTO todos (title) VALUES ($title)`,
-			bind: {	$title: title },
+			bind: { $title: title },
 		});
 	}
 
