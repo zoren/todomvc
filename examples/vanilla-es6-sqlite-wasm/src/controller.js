@@ -125,6 +125,6 @@ export default class Controller {
 		this.view.setClearCompletedButtonVisibility(!!completed);
 
 		this.view.setCompleteAllCheckbox(active === 0);
-		this.view.setMainVisibility(active && completed);
+		this.view.setMainVisibility(active || completed);
 	}
 }
