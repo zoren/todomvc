@@ -22,4 +22,14 @@ $on(window, 'hashchange', setView);
 
 // some debugging helpers
 window.execSQL = (sql) => console.table(sqlDatabase.selectObjects(sql));
-window.dumpTodos = () => window.execSQL('SELECT * FROM todos');
+window.dumpTodos = () =>
+	console.table(
+		Object.fromEntries(
+			sqlDatabase
+				.selectObjects("SELECT * FROM todos")
+				.map(({ id, title, completed }) => [
+					id,
+					{ title, completed: !!completed },
+				])
+		)
+	);
