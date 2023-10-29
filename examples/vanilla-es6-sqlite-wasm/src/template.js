@@ -3,6 +3,15 @@ import {ItemList} from './item.js';
 import {escapeForHTML} from './helpers.js';
 
 export default class Template {
+	itemHTML = ({id, completed, title}) => `
+	<li data-id="${id}"${completed ? ' class="completed"' : ''}>
+		<div class="view">
+			<input class="toggle" type="checkbox" ${completed ? 'checked' : ''}>
+			<label>${escapeForHTML(title)}</label>
+			<button class="destroy"></button>
+		</div>
+	</li>`
+
 	/**
 	 * Format the contents of a todo list.
 	 *
@@ -17,14 +26,7 @@ export default class Template {
 	 * })
 	 */
 	itemList(items) {
-		return items.reduce((a, item) => a + `
-<li data-id="${item.id}"${item.completed ? ' class="completed"' : ''}>
-	<div class="view">
-		<input class="toggle" type="checkbox" ${item.completed ? 'checked' : ''}>
-		<label>${escapeForHTML(item.title)}</label>
-		<button class="destroy"></button>
-	</div>
-</li>`, '');
+		return items.reduce((a, item) => a + this.itemHTML(item), '');
 	}
 
 	/**

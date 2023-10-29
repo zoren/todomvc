@@ -52,6 +52,14 @@ export default class View {
 	}
 
 	/**
+	 * Add an item to the todo list.
+	 * @param {Item} item Item to render
+	 */
+	addItem(item) {
+		this.$todoList.insertAdjacentHTML('beforeend', this.template.itemHTML(item));
+	}
+
+	/**
 	 * Remove an item from the view.
 	 *
 	 * @param {number} id Item ID of the item to remove
