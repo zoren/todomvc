@@ -30,12 +30,11 @@ export default class Controller {
 				innocuous: false
 			 },
 		)
-		
+
 		this.sqlDatabase.createFunction(
 			'deletedTriggerFunction',
 			(_ctxPtr, id) => {
 				this.view.removeItem(id);
-				this._updateItemsFromRoute();
 				return null;
 			},
 			{ arity: 1,
@@ -50,7 +49,6 @@ export default class Controller {
 			(_ctxPtr, id, oldTitle, newTitle, oldCompleted, newCompleted) => {
 				if (oldTitle !== newTitle) this.view.editItemDone(id, newTitle);
 				if (oldCompleted !== newCompleted) this.view.setItemComplete(id, newCompleted);
-				this._updateItemsFromRoute();
 				return null;
 			},
 			{ arity: 5,
