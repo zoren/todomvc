@@ -151,4 +151,6 @@ export default class TodoDatabase {
 				bind: { $completed: completed },
 			})
 		);
+
+  bulkExec = (sql) => this._bulkUpdate(() => this.db.selectObjects(sql));
 }

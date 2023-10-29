@@ -27,6 +27,10 @@ window.execSQL = (sql) => {
 	const rows = sqlDatabase.selectObjects(sql);
 	if (rows.length > 0) console.table(rows);
 };
+window.bulkExecSQL = (sql) => {
+	const rows = todoDatabase.bulkExec(sql);
+	if (rows.length > 0) console.table(rows);
+};
 window.dumpTodos = () =>
 	console.table(
 		Object.fromEntries(
