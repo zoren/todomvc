@@ -17,12 +17,22 @@ export default class Controller {
 			)
 		`);
 
+		this.bulkModeOperations = null;
+
+		const pushBulkModeOperationOrUpdate = (op) => {
+			if (this.bulkModeOperations !== null) {
+				this.bulkModeOperations.push(op);
+			} else {
+				this._updateViewCounts();
+			}
+		};
+
 		this.sqlDatabase.createFunction(
 			'insertedTriggerFunction',
 			(_ctxPtr, id, title, completed) => {
 				this.view.clearNewTodo();
 				this.view.addItem({ id, title, completed });
-				this._updateViewCounts();
+				pushBulkModeOperationOrUpdate({ type: "inserted", id });
 				return null;
 			},
 			{ arity: 3,
@@ -36,7 +46,7 @@ export default class Controller {
 			'deletedTriggerFunction',
 			(_ctxPtr, id) => {
 				this.view.removeItem(id);
-				this._updateViewCounts();
+				pushBulkModeOperationOrUpdate({ type: "deleted", id });
 				return null;
 			},
 			{ arity: 1,
@@ -52,7 +62,7 @@ export default class Controller {
 				if (oldTitle !== newTitle) this.view.editItemDone(id, newTitle);
 				if (oldCompleted !== newCompleted) {
 					this.view.setItemComplete(id, newCompleted);
-					this._updateViewCounts();
+					pushBulkModeOperationOrUpdate({ type: "updated", id });
 				}
 				return null;
 			},
@@ -168,7 +178,9 @@ export default class Controller {
 	 * Remove all completed items.
 	 */
 	removeCompletedItems() {
-		this.sqlDatabase.exec(`DELETE FROM todos WHERE completed`);
+		this._bulkUpdate(() =>
+			this.sqlDatabase.exec(`DELETE FROM todos WHERE completed`)
+		);
 	}
 
 	/**
@@ -190,10 +202,12 @@ export default class Controller {
 	 * @param {boolean} completed Desired completed state
 	 */
 	toggleAll(completed) {
-		this.sqlDatabase.exec({
-			sql: `UPDATE todos SET completed = $completed`,
-			bind: { $completed: completed },
-		});
+		this._bulkUpdate(() =>
+			this.sqlDatabase.exec({
+				sql: `UPDATE todos SET completed = $completed`,
+				bind: { $completed: completed },
+			})
+		);
 	}
 
 	/**
@@ -208,5 +222,18 @@ export default class Controller {
 
 		this.view.setCompleteAllCheckbox(completed === total);
 		this.view.setMainVisibility(total);
+	}
+
+	/**
+	 * Wrap a database operation that does bulk updates to the view to avoid redundant redraws.
+	 * @param {function} bulkOperation
+	 */
+	_bulkUpdate(bulkOperation) {
+		this.bulkModeOperations = [];
+		bulkOperation();
+		if (this.bulkModeOperations.length > 0) {
+			this._updateViewCounts();
+		}
+		this.bulkModeOperations = null;
 	}
 }
