@@ -19,8 +19,7 @@ export default class Controller {
 
 		this.sqlDatabase.createFunction(
 			'insertedDeletedTriggerFunction',
-			(_ctxPtr, insertedOrDeleted, id, ...args) => {
-				// console.log('insertedDeletedTriggerFunction', ...args)
+			(_ctxPtr, insertedOrDeleted, id) => {
 				if (insertedOrDeleted === 'deleted') {
 					this.view.removeItem(id);
 				}else if (insertedOrDeleted === 'inserted') {
@@ -51,7 +50,6 @@ export default class Controller {
 		this.sqlDatabase.createFunction(
 			'updatedTriggerFunction',
 			(_ctxPtr, id, oldTitle, newTitle, oldCompleted, newCompleted) => {
-				// console.log('updatedTriggerFunction', { id, oldTitle, newTitle, oldCompleted, newCompleted })
 				if (oldTitle !== newTitle) this.view.editItemDone(id, newTitle);
 				if (oldCompleted !== newCompleted) this.view.setItemComplete(id, newCompleted);
 				this._updateItemsFromRoute();
@@ -185,17 +183,20 @@ export default class Controller {
 	 */
 	_updateItemsFromRoute() {
 		const route = this._activeRoute;
-		const items = route === '' ?
-			this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos`) :
-			this.sqlDatabase.selectObjects(`SELECT id, title, completed FROM todos WHERE completed = $completed`, { $completed: route === "completed" });
+		const items =
+			route === ''
+				? this.sqlDatabase.selectObjects(
+						`SELECT id, title, completed FROM todos`
+				  )
+				: this.sqlDatabase.selectObjects(
+						`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+						{ $completed: route === 'completed' }
+				  );
 		this.view.showItems(items)
 
-		const { total, active, completed } = this.sqlDatabase.selectObject(`
-		SELECT 
-			(SELECT count(*) FROM todos) as total,
-			(SELECT count(*) FROM todos WHERE NOT completed) as active,
-			(SELECT count(*) FROM todos WHERE completed) as completed`);
-
+		const { total, active, completed } = this.sqlDatabase.selectObject(
+			`SELECT COUNT(*) AS total, COUNT(IIF(completed, NULL, 1)) AS active, COUNT(IIF(completed, 1, NULL)) AS completed FROM todos`
+		);
 		this.view.setItemsLeft(active);
 		this.view.setClearCompletedButtonVisibility(completed);
 
