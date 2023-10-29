@@ -13,6 +13,8 @@ export default class TodoDatabase {
 			)
 		`);
 
+		// because SQLite doesn't support triggers on transactions but only rows
+		// we keep track of bulk operations and only dispatch events when they are done
 		this.bulkModeFn = null;
 
 		const updateCountIfNotBulk = () => {

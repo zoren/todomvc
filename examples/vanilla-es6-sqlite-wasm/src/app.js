@@ -1,4 +1,5 @@
 import Controller from './controller.js';
+import TodoDatabase from './database.js';
 import {$on} from './helpers.js';
 import Template from './template.js';
 import View from './view.js';
@@ -12,10 +13,11 @@ const sqlite3 = await sqlite3InitModule({
 	printErr: (...args) => console.error(...args),
 })
 const sqlDatabase = new sqlite3.oo1.JsStorageDb('local');
+const todoDatabase = new TodoDatabase(sqlDatabase);
 /**
  * @type {Controller}
  */
-const controller = new Controller(sqlDatabase, view);
+const controller = new Controller(todoDatabase, view);
 const setView = () => controller.setView(document.location.hash);
 setView();
 $on(window, 'hashchange', setView);
