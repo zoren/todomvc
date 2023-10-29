@@ -47,12 +47,18 @@ export default class Controller {
 	 */
 	setView(raw) {
 		const route = raw.replace(/^#\//, '');
+
+		// these following items and status count requests should be done in a transaction
+		// so otherwise we risk having inconsistent data between the two
+		// however I've been unsuccessful in getting read transactions to work as expected
 		const items =
 			route === ''
 				? this.database.getAllItems()
 				: this.database.getItemsByCompletedStatus(route === 'completed');
+		const statusCounts = this.database.getStatusCounts();
+
 		this.view.showItems(items);
-		this._updateViewCounts(this.database.getStatusCounts());
+		this._updateViewCounts(statusCounts);
 		this.view.updateFilterButtons(route);
 	}
 
