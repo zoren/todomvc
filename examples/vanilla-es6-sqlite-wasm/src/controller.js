@@ -13,7 +13,7 @@ export default class Controller {
 		CREATE TABLE IF NOT EXISTS todos (
 			id INTEGER PRIMARY KEY,
 			title TEXT,
-			completed INTEGER
+			completed INTEGER DEFAULT 0
 			)
 		`);
 
@@ -101,12 +101,8 @@ export default class Controller {
 	 */
 	addItem(title) {
 		this.sqlDatabase.exec({
-			sql: `INSERT INTO todos (id, title, completed) VALUES ($id, $title, $completed)`,
-			bind: {
-				$id: Date.now(),
-				$title: title,
-				$completed: false,
-			},
+			sql: `INSERT INTO todos (title) VALUES ($title)`,
+			bind: {	$title: title },
 		});
 	}
 
