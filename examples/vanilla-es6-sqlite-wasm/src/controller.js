@@ -19,12 +19,13 @@ export default class Controller {
 
 		this.sqlDatabase.createFunction(
 			'insertedTriggerFunction',
-			(_ctxPtr, _id) => {
+			(_ctxPtr, id, title, completed) => {
 				this.view.clearNewTodo();
-				this._updateItemsFromRoute();
+				this.view.addItem({ id, title, completed });
+				this._updateViewCounts();
 				return null;
 			},
-			{ arity: 1,
+			{ arity: 3,
 				deterministic: false,
 				directOnly: false,
 				innocuous: false
@@ -35,6 +36,7 @@ export default class Controller {
 			'deletedTriggerFunction',
 			(_ctxPtr, id) => {
 				this.view.removeItem(id);
+				this._updateViewCounts();
 				return null;
 			},
 			{ arity: 1,
@@ -48,7 +50,10 @@ export default class Controller {
 			'updatedTriggerFunction',
 			(_ctxPtr, id, oldTitle, newTitle, oldCompleted, newCompleted) => {
 				if (oldTitle !== newTitle) this.view.editItemDone(id, newTitle);
-				if (oldCompleted !== newCompleted) this.view.setItemComplete(id, newCompleted);
+				if (oldCompleted !== newCompleted) {
+					this.view.setItemComplete(id, newCompleted);
+					this._updateViewCounts();
+				}
 				return null;
 			},
 			{ arity: 5,
@@ -61,7 +66,7 @@ export default class Controller {
 		this.sqlDatabase.exec(`
 		CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
     BEGIN
-      SELECT insertedTriggerFunction(new.id);
+      SELECT insertedTriggerFunction(new.id, new.title, new.completed);
     END;
 
 		CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
@@ -82,8 +87,6 @@ export default class Controller {
 		view.bindToggleItem(this.toggleCompleted.bind(this));
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
-
-		this._activeRoute = '';
 	}
 
 	/**
@@ -93,8 +96,17 @@ export default class Controller {
 	 */
 	setView(raw) {
 		const route = raw.replace(/^#\//, '');
-		this._activeRoute = route;
-		this._updateItemsFromRoute();
+		const items =
+			route === ''
+				? this.sqlDatabase.selectObjects(
+						`SELECT id, title, completed FROM todos`
+				  )
+				: this.sqlDatabase.selectObjects(
+						`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+						{ $completed: route === 'completed' }
+				  );
+		this.view.showItems(items)
+		this._updateViewCounts();
 		this.view.updateFilterButtons(route);
 	}
 
@@ -185,21 +197,9 @@ export default class Controller {
 	}
 
 	/**
-	 * Refresh the list based on the current route.
+	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateItemsFromRoute() {
-		const route = this._activeRoute;
-		const items =
-			route === ''
-				? this.sqlDatabase.selectObjects(
-						`SELECT id, title, completed FROM todos`
-				  )
-				: this.sqlDatabase.selectObjects(
-						`SELECT id, title, completed FROM todos WHERE completed = $completed`,
-						{ $completed: route === 'completed' }
-				  );
-		this.view.showItems(items)
-
+	_updateViewCounts() {
 		const { total, active, completed } = this.sqlDatabase.selectObject(
 			`SELECT COUNT(*) AS total, COUNT(IIF(completed, NULL, 1)) AS active, COUNT(IIF(completed, 1, NULL)) AS completed FROM todos`
 		);
