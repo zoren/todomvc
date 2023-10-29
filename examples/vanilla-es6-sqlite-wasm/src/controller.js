@@ -174,13 +174,10 @@ export default class Controller {
 	 * @param {boolean} completed Desired completed state
 	 */
 	toggleAll(completed) {
-		const data = this.sqlDatabase.selectObjects(
-			`SELECT id FROM todos WHERE completed = NOT $completed`,
-			{ $completed: completed }
-		);
-		for (let { id } of data) {
-			this.toggleCompleted(id, completed);
-		}
+		this.sqlDatabase.exec({
+			sql: `UPDATE todos SET completed = $completed`,
+			bind: { $completed: completed },
+		});
 	}
 
 	/**
