@@ -111,14 +111,14 @@ export default class Controller {
 	 */
 	toggleAll = (completed) => this.database.setAllItemsCompletedStatus(completed);
 
-		/**
+	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
 	_updateViewCounts({ active, completed }) {
 		this.view.setItemsLeft(active);
-		this.view.setClearCompletedButtonVisibility(completed);
+		this.view.setClearCompletedButtonVisibility(!!completed);
 
 		this.view.setCompleteAllCheckbox(active === 0);
-		this.view.setMainVisibility(active + completed);
+		this.view.setMainVisibility(active && completed);
 	}
 }

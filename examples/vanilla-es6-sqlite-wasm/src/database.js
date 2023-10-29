@@ -103,24 +103,22 @@ export default class TodoDatabase {
 		);
 
 	addItem = ($title) =>
-		this.db.exec({
-			sql: `INSERT INTO todos (title) VALUES ($title)`,
+		this.db.exec(`INSERT INTO todos (title) VALUES ($title)`, {
 			bind: { $title },
 		});
 
 	setItemTitle = ($id, $title) =>
-		this.db.exec({
-			sql: `UPDATE todos SET title = $title WHERE id = $id`,
+		this.db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
 			bind: { $id, $title },
 		});
 
 	setItemCompletedStatus = ($id, $completed) =>
-		this.db.exec({
-			sql: `UPDATE todos SET completed = $completed WHERE id = $id`,
+		this.db.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
 			bind: { $id, $completed },
 		});
 
-	deleteItem = ($id) =>	this.db.exec({ sql: `DELETE FROM todos WHERE id = $id`, bind: { $id } });
+	deleteItem = ($id) =>
+		this.db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
 
 	getStatusCounts = () =>
 		this.db.selectObject(
@@ -144,13 +142,12 @@ export default class TodoDatabase {
 	deleteCompletedItems = () =>
 		this._bulkUpdate(() => this.db.exec(`DELETE FROM todos WHERE completed`));
 
-	setAllItemsCompletedStatus = (completed) =>
+	setAllItemsCompletedStatus = ($completed) =>
 		this._bulkUpdate(() =>
-			this.db.exec({
-				sql: `UPDATE todos SET completed = $completed`,
-				bind: { $completed: completed },
+			this.db.exec(`UPDATE todos SET completed = $completed`, {
+				bind: { $completed },
 			})
 		);
 
-  bulkExec = (sql) => this._bulkUpdate(() => this.db.selectObjects(sql));
+	bulkExec = (params) => this._bulkUpdate(() => this.db.selectObjects(params));
 }

@@ -42,3 +42,4 @@ window.dumpTodos = () =>
 				])
 		)
 	);
+window.todoDB = todoDatabase;
