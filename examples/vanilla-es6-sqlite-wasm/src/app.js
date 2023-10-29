@@ -21,7 +21,10 @@ setView();
 $on(window, 'hashchange', setView);
 
 // some debugging helpers
-window.execSQL = (sql) => console.table(sqlDatabase.selectObjects(sql));
+window.execSQL = (sql) => {
+	const rows = sqlDatabase.selectObjects(sql);
+	if (rows.length > 0) console.table(rows);
+};
 window.dumpTodos = () =>
 	console.table(
 		Object.fromEntries(
