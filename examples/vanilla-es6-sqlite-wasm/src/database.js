@@ -8,10 +8,11 @@ export default class TodoDatabase {
 		this.db.exec(`
 		CREATE TABLE IF NOT EXISTS todos (
 			id INTEGER PRIMARY KEY,
-			title TEXT,
-			completed INTEGER DEFAULT 0
-			)
-		`);
+			title TEXT NOT NULL,
+			completed INTEGER NOT NULL DEFAULT 0,
+			CHECK (title <> ''),
+			CHECK (completed IN (0, 1)) -- SQLite uses integers for booleans
+			)`);
 
 		// because SQLite doesn't support triggers on transactions but only rows
 		// we keep track of bulk operations and only dispatch events when they are done
