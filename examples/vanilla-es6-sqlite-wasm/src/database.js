@@ -21,31 +21,23 @@ export default class TodoDatabase {
 		// we keep track of bulk operations and only dispatch changedItemCounts events when they are over
 		this.directMode = true;
 
-		this.db.createFunction("is_direct_mode", () => this.directMode, {
-			arity: 0,
-			deterministic: false,
-			directOnly: false,
-			innocuous: false,
-		});
+		this.db.createFunction("is_direct_mode", () => this.directMode);
 
 		this.db.createFunction(
 			"inserted_item_fn",
 			(_ctxPtr, id, title, completed) =>
 				this._dispatchEvent("insertedItem", { id, title, completed }),
-			{ arity: 3, deterministic: false, directOnly: false, innocuous: false }
 		);
 
 		this.db.createFunction(
 			"deleted_item_fn",
 			(_ctxPtr, id) => this._dispatchEvent("deletedItem", { id }),
-			{ arity: 1, deterministic: false, directOnly: false, innocuous: false }
 		);
 
 		this.db.createFunction(
 			"updated_title_fn",
 			(_ctxPtr, id, newTitle) =>
 				this._dispatchEvent("updatedTitle", { id, newTitle }),
-			{ arity: 2, deterministic: false, directOnly: false, innocuous: false }
 		);
 
 		this.db.createFunction(
@@ -58,7 +50,6 @@ export default class TodoDatabase {
 		this.db.createFunction(
 			"changed_completed_count_fn",
 			() => this._dispatchEvent("changedItemCounts", this.getStatusCounts()),
-			{ arity: 0, deterministic: false, directOnly: false, innocuous: false }
 		);
 
 		this.db.exec(`
