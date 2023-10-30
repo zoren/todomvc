@@ -14,65 +14,77 @@ export default class TodoDatabase {
 			CHECK (completed IN (0, 1)) -- SQLite uses integers for booleans
 			)`);
 
-		// because SQLite doesn't support triggers on transactions only rows
-		// we keep track of bulk operations and only updateItemCounts events when they are done
-		this.bulkMode = false;
+		// SQLite supports triggers on rows but not transactions
+		// we keep track of bulk operations and only dispatch changedItemCounts events when they are over
+		let directMode = true;
+		this.setDirectMode = (dm) => (directMode = dm);
 
-		const updateCountIfNotBulk = () => {
-			if (this.bulkMode) return;
-			this._dispatchEvent("updateItemCounts", this.getStatusCounts());
-		};
+		this.db.createFunction("is_direct_mode", () => directMode, {
+			arity: 0,
+			deterministic: false,
+			directOnly: false,
+			innocuous: false,
+		});
 
 		this.db.createFunction(
-			"insertedTriggerFunction",
-			(_ctxPtr, id, title, completed) => {
-				this._dispatchEvent("insertedItem", { id, title, completed });
-				updateCountIfNotBulk();
-				return null;
-			},
+			"inserted_item_fn",
+			(_ctxPtr, id, title, completed) =>
+				this._dispatchEvent("insertedItem", { id, title, completed }),
 			{ arity: 3, deterministic: false, directOnly: false, innocuous: false }
 		);
 
 		this.db.createFunction(
-			"deletedTriggerFunction",
-			(_ctxPtr, id) => {
-				this._dispatchEvent("deletedItem", { id });
-				updateCountIfNotBulk();
-				return null;
-			},
+			"deleted_item_fn",
+			(_ctxPtr, id) => this._dispatchEvent("deletedItem", { id }),
 			{ arity: 1, deterministic: false, directOnly: false, innocuous: false }
 		);
 
 		this.db.createFunction(
-			"updatedTriggerFunction",
-			(_ctxPtr, id, oldTitle, newTitle, oldCompleted, newCompleted) => {
-				if (oldTitle !== newTitle)
-					this._dispatchEvent("updatedTitle", { id, newTitle });
-				if (oldCompleted !== newCompleted) {
-					this._dispatchEvent("updatedCompleted", { id, newCompleted });
-					updateCountIfNotBulk();
-				}
-				return null;
-			},
-			{ arity: 5, deterministic: false, directOnly: false, innocuous: false }
+			"updated_title_fn",
+			(_ctxPtr, id, newTitle) =>
+				this._dispatchEvent("updatedTitle", { id, newTitle }),
+			{ arity: 2, deterministic: false, directOnly: false, innocuous: false }
+		);
+
+		this.db.createFunction(
+			"updated_completed_fn",
+			(_ctxPtr, id, newCompleted) =>
+				this._dispatchEvent("updatedCompleted", { id, newCompleted }),
+			{ arity: 2, deterministic: false, directOnly: false, innocuous: false }
+		);
+
+		this.db.createFunction(
+			"changed_completed_count_fn",
+			() => this._dispatchEvent("changedItemCounts", this.getStatusCounts()),
+			{ arity: 0, deterministic: false, directOnly: false, innocuous: false }
 		);
 
 		this.db.exec(`
-		CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
-				BEGIN
-						SELECT insertedTriggerFunction(new.id, new.title, new.completed);
-				END;
+CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
+  BEGIN
+    SELECT inserted_item_fn(new.id, new.title, new.completed);
+    SELECT changed_completed_count_fn() WHERE is_direct_mode();
+  END;
 
-		CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
-				BEGIN
-						SELECT deletedTriggerFunction(old.id);
-				END;
+CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
+  BEGIN
+    SELECT deleted_item_fn(old.id);
+    SELECT changed_completed_count_fn() WHERE is_direct_mode();
+  END;
 
-		CREATE TRIGGER IF NOT EXISTS update_trigger AFTER UPDATE ON todos
-				BEGIN
-						SELECT updatedTriggerFunction(new.id, old.title, new.title, old.completed, new.completed);
-				END;
-		`);
+CREATE TRIGGER IF NOT EXISTS update_title_trigger AFTER UPDATE OF title ON todos
+  WHEN old.title <> new.title
+  BEGIN
+    SELECT updated_title_fn(new.id, new.title);
+  END;
+
+CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed ON todos
+  WHEN old.completed <> new.completed
+  BEGIN
+    SELECT updated_completed_fn(new.id, new.completed);
+    SELECT changed_completed_count_fn() WHERE is_direct_mode();
+  END;
+`);
 		this.listeners = new Map();
 	}
 
@@ -124,31 +136,33 @@ export default class TodoDatabase {
 				COUNT(IIF(completed, 1, NULL)) AS completed FROM todos`
 		);
 
-	_bulkUpdate = (bulkOperation) => {
+  // we use this function to wrap bulk operations on completed statuses
+  // so that we can dispatch the changedItemCounts event only once
+  _bulkStatusUpdate = (bulkOperation) => {
 		const beforeCount = this.getStatusCounts();
-		this.bulkMode = true;
+		this.setDirectMode(false);
 		const result = bulkOperation();
-		this.bulkMode = false;
+		this.setDirectMode(true);
 		const afterCounts = this.getStatusCounts();
 		// count changed during bulk operation so we dispatch the event
 		if (
 			beforeCount.active !== afterCounts.active ||
 			beforeCount.completed !== afterCounts.completed
 		) {
-			this._dispatchEvent("updateItemCounts", afterCounts);
+			this._dispatchEvent("changedItemCounts", afterCounts);
 		}
 		return result;
 	};
 
 	deleteCompletedItems = () =>
-		this._bulkUpdate(() => this.db.exec(`DELETE FROM todos WHERE completed`));
+		this._bulkStatusUpdate(() => this.db.exec(`DELETE FROM todos WHERE completed`));
 
 	setAllItemsCompletedStatus = ($completed) =>
-		this._bulkUpdate(() =>
+		this._bulkStatusUpdate(() =>
 			this.db.exec(`UPDATE todos SET completed = $completed`, {
 				bind: { $completed },
 			})
 		);
 
-	bulkExec = (params) => this._bulkUpdate(() => this.db.selectObjects(params));
+	bulkExec = (params) => this._bulkStatusUpdate(() => this.db.selectObjects(params));
 }

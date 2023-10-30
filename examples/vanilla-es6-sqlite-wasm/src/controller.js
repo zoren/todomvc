@@ -27,7 +27,7 @@ export default class Controller {
 			this.view.setItemComplete(id, newCompleted)
 		);
 
-		database.addEventListener('updateItemCounts', (counts) =>
+		database.addEventListener('changedItemCounts', (counts) =>
 			this._updateViewCounts(counts)
 		);
 
