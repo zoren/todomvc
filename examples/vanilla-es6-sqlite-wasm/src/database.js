@@ -20,10 +20,9 @@ export default class TodoDatabase {
 
 		// SQLite supports triggers on rows but not transactions
 		// we keep track of bulk operations and only dispatch changedItemCounts events when they are over
-		let directMode = true;
-		this.setDirectMode = (dm) => (directMode = dm);
+		this.directMode = true;
 
-		this.db.createFunction("is_direct_mode", () => directMode, {
+		this.db.createFunction("is_direct_mode", () => this.directMode, {
 			arity: 0,
 			deterministic: false,
 			directOnly: false,
@@ -144,9 +143,9 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
   // so that we can dispatch the changedItemCounts event only once
   _bulkStatusUpdate = (bulkOperation) => {
 		const beforeCount = this.getStatusCounts();
-		this.setDirectMode(false);
+		this.directMode = false;
 		const result = bulkOperation();
-		this.setDirectMode(true);
+		this.directMode = true;
 		const afterCounts = this.getStatusCounts();
 		// count changed during bulk operation so we dispatch the event
 		if (
