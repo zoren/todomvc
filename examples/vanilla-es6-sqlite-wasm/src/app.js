@@ -18,9 +18,9 @@ const todoDatabase = new TodoDatabase(sqlDatabase);
  * @type {Controller}
  */
 const controller = new Controller(todoDatabase, view);
-const setView = () => controller.setView(document.location.hash);
-setView();
-$on(window, 'hashchange', setView);
+const updateView = () => controller.setView(document.location.hash);
+updateView();
+$on(window, 'hashchange', updateView);
 // listen for changes from other sessions
 addEventListener("storage", (event) => {
 	// when other sessions sqlite clears the journal, it means it has committed and we can update our view
@@ -29,7 +29,7 @@ addEventListener("storage", (event) => {
 		event.key === "kvvfs-local-jrnl" &&
 		event.newValue === null
 	)
-		setView();
+		updateView();
 });
 
 // some debugging helpers
