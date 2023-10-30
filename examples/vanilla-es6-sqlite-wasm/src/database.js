@@ -14,13 +14,13 @@ export default class TodoDatabase {
 			CHECK (completed IN (0, 1)) -- SQLite uses integers for booleans
 			)`);
 
-		// because SQLite doesn't support triggers on transactions but only rows
-		// we keep track of bulk operations and only dispatch events when they are done
-		this.bulkModeFn = null;
+		// because SQLite doesn't support triggers on transactions only rows
+		// we keep track of bulk operations and only updateItemCounts events when they are done
+		this.bulkMode = false;
 
 		const updateCountIfNotBulk = () => {
-			if (this.bulkModeFn !== null) return this.bulkModeFn();
-			this._dispatchItemCounts();
+			if (this.bulkMode) return;
+			this._dispatchEvent("updateItemCounts", this.getStatusCounts());
 		};
 
 		this.db.createFunction(
@@ -81,9 +81,6 @@ export default class TodoDatabase {
 		if (set) set.forEach((listener) => setTimeout(listener(data)));
 	};
 
-	_dispatchItemCounts = () =>
-		this._dispatchEvent("updateItemCounts", this.getStatusCounts());
-
 	addEventListener = (type, listener) => {
 		let set = this.listeners.get(type);
 		if (set === undefined) this.listeners.set(type, (set = new Set()));
@@ -128,14 +125,18 @@ export default class TodoDatabase {
 		);
 
 	_bulkUpdate = (bulkOperation) => {
-		let operations = 0;
-		this.bulkModeFn = () => {
-			operations++;
-			return;
-		};
+		const beforeCount = this.getStatusCounts();
+		this.bulkMode = true;
 		const result = bulkOperation();
-		this.bulkModeFn = null;
-		if (operations > 0) this._dispatchItemCounts();
+		this.bulkMode = false;
+		const afterCounts = this.getStatusCounts();
+		// count changed during bulk operation so we dispatch the event
+		if (
+			beforeCount.active !== afterCounts.active ||
+			beforeCount.completed !== afterCounts.completed
+		) {
+			this._dispatchEvent("updateItemCounts", afterCounts);
+		}
 		return result;
 	};
 
