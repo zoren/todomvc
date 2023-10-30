@@ -13,6 +13,10 @@ export default class TodoDatabase {
 			CHECK (title <> ''),
 			CHECK (completed IN (0, 1)) -- SQLite uses integers for booleans
 			)`);
+    // we will need to filter on completed so we create an index
+    this.db.exec(`
+    CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)
+    `);
 
 		// SQLite supports triggers on rows but not transactions
 		// we keep track of bulk operations and only dispatch changedItemCounts events when they are over
@@ -155,7 +159,7 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
 	};
 
 	deleteCompletedItems = () =>
-		this._bulkStatusUpdate(() => this.db.exec(`DELETE FROM todos WHERE completed`));
+		this._bulkStatusUpdate(() => this.db.exec(`DELETE FROM todos WHERE completed = 1`));
 
 	setAllItemsCompletedStatus = ($completed) =>
 		this._bulkStatusUpdate(() =>
