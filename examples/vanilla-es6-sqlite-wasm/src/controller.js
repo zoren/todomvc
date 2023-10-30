@@ -12,7 +12,8 @@ export default class Controller {
 
 		database.addEventListener('insertedItem', (item) => {
 			this.view.clearNewTodo();
-			this.view.addItem(item);
+			if (this.isAllRoute() || !!item.completed === this.isCompletedRoute())
+				this.view.addItem(item);
 		});
 
 		database.addEventListener('deletedItem', ({ id }) =>
@@ -23,9 +24,15 @@ export default class Controller {
 			this.view.editItemDone(id, newTitle)
 		);
 
-		database.addEventListener('updatedCompleted', ({ id, newCompleted }) =>
-			this.view.setItemComplete(id, newCompleted)
-		);
+		database.addEventListener('updatedCompleted', ({ id, newCompleted }) => {
+			if (this.isAllRoute()) {
+				this.view.setItemComplete(id, newCompleted);
+			} else {
+				this.view.showItems(
+					this.database.getItemsByCompletedStatus(this.isCompletedRoute())
+				);
+			}
+		});
 
 		database.addEventListener('changedItemCounts', (counts) =>
 			this._updateViewCounts(counts)
@@ -38,7 +45,13 @@ export default class Controller {
 		view.bindToggleItem(this.toggleCompleted.bind(this));
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
+
+		this._activeRoute = '';
 	}
+
+	isAllRoute = () => this._activeRoute === '';
+	
+	isCompletedRoute = () => this._activeRoute === 'completed';
 
 	/**
 	 * Set and render the active route.
@@ -46,20 +59,20 @@ export default class Controller {
 	 * @param {string} raw '' | '#/' | '#/active' | '#/completed'
 	 */
 	setView(raw) {
-		const route = raw.replace(/^#\//, '');
+		this._activeRoute = raw.replace(/^#\//, '');
 
 		// these following items and status count requests should be done in a transaction,
 		// otherwise we risk having inconsistencies between the two,
 		// however since we are calling the database synchronously we don't need to worry about for now
 		const items =
-			route === ''
+			this.isAllRoute()
 				? this.database.getAllItems()
-				: this.database.getItemsByCompletedStatus(route === 'completed');
+				: this.database.getItemsByCompletedStatus(this.isCompletedRoute());
 		const statusCounts = this.database.getStatusCounts();
 
 		this.view.showItems(items);
 		this._updateViewCounts(statusCounts);
-		this.view.updateFilterButtons(route);
+		this.view.updateFilterButtons(this._activeRoute);
 	}
 
 	/**
