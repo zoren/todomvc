@@ -21,6 +21,16 @@ const controller = new Controller(todoDatabase, view);
 const setView = () => controller.setView(document.location.hash);
 setView();
 $on(window, 'hashchange', setView);
+// listen for changes from other sessions
+addEventListener("storage", (event) => {
+	// when other sessions sqlite clears the journal, it means it has committed and we can update our view
+	if (
+		event.storageArea === localStorage &&
+		event.key === "kvvfs-local-jrnl" &&
+		event.newValue === null
+	)
+		setView();
+});
 
 // some debugging helpers
 window.execSQL = (sql) => {
