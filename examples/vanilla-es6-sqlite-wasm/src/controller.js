@@ -48,9 +48,9 @@ export default class Controller {
 	setView(raw) {
 		const route = raw.replace(/^#\//, '');
 
-		// these following items and status count requests should be done in a transaction
-		// so otherwise we risk having inconsistent data between the two
-		// however I've been unsuccessful in getting read transactions to work as expected
+		// these following items and status count requests should be done in a transaction,
+		// otherwise we risk having inconsistencies between the two,
+		// however since we are calling the database synchronously we don't need to worry about for now
 		const items =
 			route === ''
 				? this.database.getAllItems()
