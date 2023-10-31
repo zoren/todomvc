@@ -133,7 +133,7 @@ export default class Controller {
 	 */
 	_updateViewCounts({ active, completed }) {
 		this.view.setItemsLeft(active);
-		this.view.setClearCompletedButtonVisibility(!!completed);
+		this.view.setClearCompletedButtonVisibility(completed > 0);
 
 		this.view.setCompleteAllCheckbox(active === 0);
 		this.view.setMainVisibility(active || completed);
