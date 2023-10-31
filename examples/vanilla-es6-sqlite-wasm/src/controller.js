@@ -23,68 +23,47 @@ export default class Controller {
 		this._currentRoute = "";
 	}
 
-	_processEvent = (outerEvent) => {
+	_processEvent = (event) => {
 		const route = this._currentRoute;
 		const isCompletedRoute = route === "completed";
 
-		const processSingleEvent = (event) => {
-			const { type, id } = event;
-			switch (type) {
-				case "insertedItem": {
-					this.view.clearNewTodo();
-					// add item if it should be visible in the current route
-					if (route === "" || event.completed === isCompletedRoute)
-						this.view.addItem(event);
-					return;
-				}
-				case "deletedItem":
-					return this.view.removeItem(id);
-				case "updatedTitle":
-					return this.view.editItemDone(id, event.newTitle);
-				case "updatedCompleted": {
-					const { completed } = event;
-					if (route === "") return this.view.setItemComplete(id, completed);
-					// item was filtered out by the route, so remove it
-					if (completed !== isCompletedRoute) this.view.removeItem(id);
-					else this.view.addItem(event);
-					return;
-				}
-				default:
-					throw new Error("unknown event type " + type);
+		const { type, id } = event;
+		switch (type) {
+			case "insertedItem": {
+				this.view.clearNewTodo();
+				// add item if it should be visible in the current route
+				if (route === "" || event.completed === isCompletedRoute)
+					this.view.addItem(event);
+				return;
 			}
-		};
-
-		const events = outerEvent.type === "batch" ? outerEvent.events : [outerEvent];
-		events.forEach(processSingleEvent);
-
-		// these events can change the counts of completed and active todos
-		const isCompletedChangeEvent = ({ type }) =>
-			type === "insertedItem" ||
-			type === "updatedCompleted" ||
-			type === "deletedItem";
-		if (events.some(isCompletedChangeEvent)) this._updateViewCounts();
+			case "deletedItem":
+				return this.view.removeItem(id);
+			case "updatedTitle":
+				return this.view.editItemDone(id, event.title);
+			case "updatedCompleted": {
+				const { completed } = event;
+				if (route === "") return this.view.setItemComplete(id, completed);
+				// item was filtered out by the route, so remove it
+				if (completed !== isCompletedRoute) this.view.removeItem(id);
+				else this.view.addItem(event);
+				return;
+			}
+			case "changedCompletedCount":
+				return this._updateViewCounts(event);
+			default:
+				throw new Error("unknown event type " + type);
+		}
 	};
-
-	_loadAllItemsForRoute() {
-		const route = this._currentRoute;
-		this.view.showItems(
-			route === ""
-				? this.database.getAllItems()
-				: this.database.getItemsByCompletedStatus(route === "completed")
-		);
-	}
 
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateViewCounts() {
-		const { active, completed } = this.database.getStatusCounts();
+	_updateViewCounts({ activeCount, completedCount }) {
+		this.view.setItemsLeft(activeCount);
+		this.view.setCompleteAllCheckbox(activeCount === 0);
 
-		this.view.setItemsLeft(active);
-		this.view.setClearCompletedButtonVisibility(completed > 0);
-
-		this.view.setCompleteAllCheckbox(active === 0);
-		this.view.setMainVisibility(active > 0 || completed > 0);
+		this.view.setClearCompletedButtonVisibility(completedCount > 0);
+		this.view.setMainVisibility(activeCount > 0 || completedCount > 0);
 	}
 
 	/**
@@ -93,13 +72,14 @@ export default class Controller {
 	 * @param {string} raw '' | '#/' | '#/active' | '#/completed'
 	 */
 	setView(raw) {
-		this._currentRoute = raw.replace(/^#\//, "");
+		const route = (this._currentRoute = raw.replace(/^#\//, ""));
 
-		// these following items and status count requests should be done in a transaction,
-		// otherwise we risk having inconsistencies between the two,
-		// however since we are calling the database synchronously we don't need to worry for now
-		this._loadAllItemsForRoute();
-		this._updateViewCounts();
+		this.view.showItems(
+			route === ""
+				? this.database.getAllItems()
+				: this.database.getItemsByCompletedStatus(route === "completed")
+		);
+		this._updateViewCounts(this.database.getStatusCounts());
 		this.view.updateFilterButtons(this._currentRoute);
 	}
 
