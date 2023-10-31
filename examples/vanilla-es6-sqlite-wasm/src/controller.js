@@ -61,7 +61,7 @@ export default class Controller {
 
 		// these following items and status count requests should be done in a transaction,
 		// otherwise we risk having inconsistencies between the two,
-		// however since we are calling the database synchronously we don't need to worry about for now
+		// however since we are calling the database synchronously we don't need to worry for now
 		const items =
 			route === ''
 				? this.database.getAllItems()
@@ -87,7 +87,7 @@ export default class Controller {
 	 * @param {!string} title New title for the Item in edit
 	 */
 	editItemSave(id, title) {
-		if (title.length) {
+		if (title.length > 0) {
 			this.database.setItemTitle(id, title);
 		} else {
 			this.removeItem(id);
