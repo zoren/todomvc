@@ -65,7 +65,7 @@ export default class Controller {
 			events.forEach(processSingleEvent);
 		}
 
-		// these events can change the counts of completed, active and total todos
+		// these events can change the counts of completed and active todos
 		const isCompletedChangeEvent = ({ type }) =>
 			type === "insertedItem" ||
 			type === "updatedCompleted" ||
@@ -78,8 +78,21 @@ export default class Controller {
 		this.view.showItems(
 			route === ""
 				? this.database.getAllItems()
-				: this.database.getItemsByCompletedStatus(route === 'completed')
+				: this.database.getItemsByCompletedStatus(route === "completed")
 		);
+	}
+
+	/**
+	 * Refresh the view from the counts of completed, active and total todos.
+	 */
+	_updateViewCounts() {
+		const { active, completed } = this.database.getStatusCounts();
+
+		this.view.setItemsLeft(active);
+		this.view.setClearCompletedButtonVisibility(completed > 0);
+
+		this.view.setCompleteAllCheckbox(active === 0);
+		this.view.setMainVisibility(active || completed);
 	}
 
 	/**
@@ -88,7 +101,7 @@ export default class Controller {
 	 * @param {string} raw '' | '#/' | '#/active' | '#/completed'
 	 */
 	setView(raw) {
-		this._activeRoute = raw.replace(/^#\//, '');
+		this._activeRoute = raw.replace(/^#\//, "");
 
 		// these following items and status count requests should be done in a transaction,
 		// otherwise we risk having inconsistencies between the two,
@@ -124,7 +137,8 @@ export default class Controller {
 	 *
 	 * @param {!number} id ID of the Item in edit
 	 */
-	editItemCancel = (id) => this.view.editItemDone(id, this.database.getItemTitle(id));
+	editItemCancel = (id) =>
+		this.view.editItemDone(id, this.database.getItemTitle(id));
 
 	/**
 	 * Remove the data and elements related to an Item.
@@ -144,25 +158,14 @@ export default class Controller {
 	 * @param {!number} id ID of the target Item
 	 * @param {!boolean} completed Desired completed state
 	 */
-	toggleCompleted = (id, completed) => this.database.setItemCompletedStatus(id, completed);
+	toggleCompleted = (id, completed) =>
+		this.database.setItemCompletedStatus(id, completed);
 
 	/**
 	 * Set all items to complete or active.
 	 *
 	 * @param {boolean} completed Desired completed state
 	 */
-	toggleAll = (completed) => this.database.setAllItemsCompletedStatus(completed);
-
-	/**
-	 * Refresh the view from the counts of completed, active and total todos.
-	 */
-	_updateViewCounts() {
-		const { active, completed } = this.database.getStatusCounts();
-
-		this.view.setItemsLeft(active);
-		this.view.setClearCompletedButtonVisibility(completed > 0);
-
-		this.view.setCompleteAllCheckbox(active === 0);
-		this.view.setMainVisibility(active || completed);
-	}
+	toggleAll = (completed) =>
+		this.database.setAllItemsCompletedStatus(completed);
 }
