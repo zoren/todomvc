@@ -48,11 +48,12 @@ export default class TodoDatabase {
 
 		this.db.createFunction(
 			"updated_completed_fn",
-			(_ctxPtr, id, newCompleted) =>
+			(_ctxPtr, id, title, completed) =>
 				dispatchIfDirect({
 					type: "updatedCompleted",
 					id,
-					newCompleted: !!newCompleted,
+          title,
+					completed: !!completed,
 				})
 		);
 
@@ -76,7 +77,7 @@ CREATE TRIGGER IF NOT EXISTS update_title_trigger AFTER UPDATE OF title ON todos
 CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed ON todos
   WHEN old.completed <> new.completed
   BEGIN
-    SELECT updated_completed_fn(new.id, new.completed);
+    SELECT updated_completed_fn(new.id, new.title, new.completed);
   END;
 `);
 		this.listeners = new Set();

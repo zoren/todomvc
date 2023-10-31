@@ -12,6 +12,19 @@ export default class Template {
 		</div>
 	</li>`
 
+	itemDOM = ({id, completed, title}) => {
+		const li = document.createElement('li');
+		li.setAttribute('data-id', id);
+		if (completed) li.classList.add('completed');
+		li.innerHTML = `
+		<div class="view">
+			<input class="toggle" type="checkbox" ${completed ? 'checked' : ''}>
+			<label>${escapeForHTML(title)}</label>
+			<button class="destroy"></button>
+		</div>`;
+		return li;
+	}
+
 	/**
 	 * Format the contents of a todo list.
 	 *

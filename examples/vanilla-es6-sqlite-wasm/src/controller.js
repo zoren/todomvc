@@ -42,10 +42,11 @@ export default class Controller {
 				case "updatedTitle":
 					return this.view.editItemDone(id, event.newTitle);
 				case "updatedCompleted": {
-					const { newCompleted } = event;
-					if (route === "") return this.view.setItemComplete(id, newCompleted);
+					const { completed } = event;
+					if (route === "") return this.view.setItemComplete(id, completed);
 					// item was filtered out by the route, so remove it
-					if (newCompleted !== isCompletedRoute) this.view.removeItem(id);
+					if (completed !== isCompletedRoute) this.view.removeItem(id);
+					else this.view.addItem(event);
 					return;
 				}
 				default:
@@ -53,16 +54,8 @@ export default class Controller {
 			}
 		};
 
-		const events =
-			outerEvent.type === "batch" ? outerEvent.events : [outerEvent];
-		// if we are in a filtered route and an item was toggled into view, we need to reload all items
-		const wasToggledIntoView = ({ type, newCompleted }) =>
-			type === "updatedCompleted" && newCompleted === isCompletedRoute;
-		if (route !== "" && events.some(wasToggledIntoView)) {
-			this._loadAllItemsForRoute();
-		} else {
-			events.forEach(processSingleEvent);
-		}
+		const events = outerEvent.type === "batch" ? outerEvent.events : [outerEvent];
+		events.forEach(processSingleEvent);
 
 		// these events can change the counts of completed and active todos
 		const isCompletedChangeEvent = ({ type }) =>
@@ -91,7 +84,7 @@ export default class Controller {
 		this.view.setClearCompletedButtonVisibility(completed > 0);
 
 		this.view.setCompleteAllCheckbox(active === 0);
-		this.view.setMainVisibility(active || completed);
+		this.view.setMainVisibility(active > 0 || completed > 0);
 	}
 
 	/**

@@ -56,6 +56,12 @@ export default class View {
 	 * @param {Item} item Item to render
 	 */
 	addItem(item) {
+		for (const domItem of this.$todoList.children) {
+			if (parseInt(domItem.getAttribute("data-id")) > item.id) {
+				this.$todoList.insertBefore(this.template.itemDOM(item), domItem);
+				return;
+			}
+		}
 		this.$todoList.insertAdjacentHTML('beforeend', this.template.itemHTML(item));
 	}
 
