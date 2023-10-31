@@ -26,7 +26,11 @@ export default class TodoDatabase {
 		this.db.createFunction(
 			"inserted_item_fn",
 			(_ctxPtr, id, title, completed) =>
-				this._dispatchEvent("insertedItem", { id, title, completed }),
+				this._dispatchEvent("insertedItem", {
+					id,
+					title,
+					completed: !!completed,
+				})
 		);
 
 		this.db.createFunction(
@@ -43,8 +47,10 @@ export default class TodoDatabase {
 		this.db.createFunction(
 			"updated_completed_fn",
 			(_ctxPtr, id, newCompleted) =>
-				this._dispatchEvent("updatedCompleted", { id, newCompleted }),
-			{ arity: 2, deterministic: false, directOnly: false, innocuous: false }
+				this._dispatchEvent("updatedCompleted", {
+					id,
+					newCompleted: !!newCompleted,
+				}),
 		);
 
 		this.db.createFunction(
@@ -96,13 +102,17 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
 		this.db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
 
 	getAllItems = () =>
-		this.db.selectObjects(`SELECT id, title, completed FROM todos`);
+		this.db
+			.selectObjects(`SELECT id, title, completed FROM todos`)
+			.map((item) => ({ ...item, completed: !!item.completed }));
 
 	getItemsByCompletedStatus = ($completed) =>
-		this.db.selectObjects(
-			`SELECT id, title, completed FROM todos WHERE completed = $completed`,
-			{ $completed }
-		);
+		this.db
+			.selectObjects(
+				`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+				{ $completed }
+			)
+			.map((item) => ({ ...item, completed: !!item.completed }));
 
 	addItem = ($title) =>
 		this.db.exec(`INSERT INTO todos (title) VALUES ($title)`, {
