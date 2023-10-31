@@ -12,7 +12,8 @@ export default class Controller {
 
 		database.addEventListener('insertedItem', (item) => {
 			this.view.clearNewTodo();
-			if (this.isAllRoute() || !!item.completed === this.isCompletedRoute())
+			const route = this._activeRoute;
+			if (route === '' || !!item.completed === (route === 'completed'))
 				this.view.addItem(item);
 		});
 
@@ -24,14 +25,15 @@ export default class Controller {
 			this.view.editItemDone(id, newTitle)
 		);
 
-		database.addEventListener('updatedCompleted', ({ id, newCompleted }) => {
-			if (this.isAllRoute()) {
-				this.view.setItemComplete(id, newCompleted);
-			} else {
-				this.view.showItems(
-					this.database.getItemsByCompletedStatus(this.isCompletedRoute())
-				);
-			}
+		database.addEventListener("updatedCompleted", ({ id, newCompleted }) => {
+			const route = this._activeRoute;
+			if (route === '') return this.view.setItemComplete(id, newCompleted);
+			const isCompletedRoute = route === 'completed';
+			// item was filtered out by the route, so remove it
+			if (!!newCompleted !== isCompletedRoute) return this.view.removeItem(id);
+			// item was toggled into view, but the view only supports adding items at the end, so re-render the whole list
+			const items = this.database.getItemsByCompletedStatus(isCompletedRoute);
+			this.view.showItems(items);
 		});
 
 		database.addEventListener('changedItemCounts', (counts) =>
@@ -49,30 +51,26 @@ export default class Controller {
 		this._activeRoute = '';
 	}
 
-	isAllRoute = () => this._activeRoute === '';
-	
-	isCompletedRoute = () => this._activeRoute === 'completed';
-
 	/**
 	 * Set and render the active route.
 	 *
 	 * @param {string} raw '' | '#/' | '#/active' | '#/completed'
 	 */
 	setView(raw) {
-		this._activeRoute = raw.replace(/^#\//, '');
+		const route = this._activeRoute = raw.replace(/^#\//, '');
 
 		// these following items and status count requests should be done in a transaction,
 		// otherwise we risk having inconsistencies between the two,
 		// however since we are calling the database synchronously we don't need to worry about for now
 		const items =
-			this.isAllRoute()
+			route === ''
 				? this.database.getAllItems()
-				: this.database.getItemsByCompletedStatus(this.isCompletedRoute());
+				: this.database.getItemsByCompletedStatus(route === 'completed');
 		const statusCounts = this.database.getStatusCounts();
 
 		this.view.showItems(items);
 		this._updateViewCounts(statusCounts);
-		this.view.updateFilterButtons(this._activeRoute);
+		this.view.updateFilterButtons(route);
 	}
 
 	/**
