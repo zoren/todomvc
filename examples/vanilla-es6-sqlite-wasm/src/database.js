@@ -104,9 +104,9 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
 			)
 			.map((item) => ({ ...item, completed: !!item.completed }));
 
-	addItem = ($title) =>
-		this.db.exec(`INSERT INTO todos (title) VALUES ($title)`, {
-			bind: { $title },
+	addItem = ($title, completed) =>
+		this.db.exec(`INSERT INTO todos (title, completed) VALUES ($title, $completed)`, {
+			bind: { $title, $completed: !!completed },
 		});
 
 	setItemTitle = ($id, $title) =>

@@ -55,7 +55,7 @@ window.dumpTodos = () =>
 window.todoDB = todoDatabase;
 
 window.davinci = () => {
-	sqlDatabase.exec(`delete from todos;`);
+	sqlDatabase.exec(`DELETE FROM todos;`);
 	const davincisTodos = [
 		{ title: "Design a new flying machine concept.", completed: true },
 		{ title: "Finish sketch of the Last Supper.", completed: true },
@@ -64,12 +64,7 @@ window.davinci = () => {
 		{ title: "Write notes on fluid dynamics.", completed: false },
 	];
 	for (const { title, completed } of davincisTodos) {
-		sqlDatabase.exec(
-			`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
-			{
-				bind: { $title: title, $completed: completed },
-			}
-		);
+		todoDatabase.addItem(title, completed);
 	}
 };
 if (todoDatabase.getAllItems().length === 0) davinci();
