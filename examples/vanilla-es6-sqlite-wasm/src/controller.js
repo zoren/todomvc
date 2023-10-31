@@ -20,12 +20,11 @@ export default class Controller {
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
 
-		// todo rename to currentRoute or something
-		this._activeRoute = "";
+		this._currentRoute = "";
 	}
 
 	_processEvent = (outerEvent) => {
-		const route = this._activeRoute;
+		const route = this._currentRoute;
 		const isCompletedRoute = route === "completed";
 
 		const processSingleEvent = (event) => {
@@ -74,7 +73,7 @@ export default class Controller {
 	};
 
 	_loadAllItemsForRoute() {
-		const route = this._activeRoute;
+		const route = this._currentRoute;
 		this.view.showItems(
 			route === ""
 				? this.database.getAllItems()
@@ -101,14 +100,14 @@ export default class Controller {
 	 * @param {string} raw '' | '#/' | '#/active' | '#/completed'
 	 */
 	setView(raw) {
-		this._activeRoute = raw.replace(/^#\//, "");
+		this._currentRoute = raw.replace(/^#\//, "");
 
 		// these following items and status count requests should be done in a transaction,
 		// otherwise we risk having inconsistencies between the two,
 		// however since we are calling the database synchronously we don't need to worry for now
 		this._loadAllItemsForRoute();
 		this._updateViewCounts();
-		this.view.updateFilterButtons(this._activeRoute);
+		this.view.updateFilterButtons(this._currentRoute);
 	}
 
 	/**
