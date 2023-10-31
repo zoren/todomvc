@@ -18,57 +18,53 @@ export default class TodoDatabase {
 		CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`);
 
 		// SQLite supports triggers on rows but not transactions
-		// we keep track of bulk operations and only dispatch changedItemCounts events when they are over
+		// we keep track of batch operations and dispatch a batch event when they are over
 		this.directMode = true;
+		this.eventQueue = [];
 
-		this.db.createFunction("is_direct_mode", () => this.directMode);
+		const dispatchIfDirect = (event) => {
+			if (this.directMode) this._dispatchEvent(event);
+			else this.eventQueue.push(event);
+		};
 
 		this.db.createFunction(
 			"inserted_item_fn",
 			(_ctxPtr, id, title, completed) =>
-				this._dispatchEvent("insertedItem", {
+				dispatchIfDirect({
+					type: "insertedItem",
 					id,
 					title,
 					completed: !!completed,
 				})
 		);
 
-		this.db.createFunction(
-			"deleted_item_fn",
-			(_ctxPtr, id) => this._dispatchEvent("deletedItem", { id }),
+		this.db.createFunction("deleted_item_fn", (_ctxPtr, id) =>
+			dispatchIfDirect({ type: "deletedItem", id })
 		);
 
-		this.db.createFunction(
-			"updated_title_fn",
-			(_ctxPtr, id, newTitle) =>
-				this._dispatchEvent("updatedTitle", { id, newTitle }),
+		this.db.createFunction("updated_title_fn", (_ctxPtr, id, newTitle) =>
+			dispatchIfDirect({ type: "updatedTitle", id, newTitle })
 		);
 
 		this.db.createFunction(
 			"updated_completed_fn",
 			(_ctxPtr, id, newCompleted) =>
-				this._dispatchEvent("updatedCompleted", {
+				dispatchIfDirect({
+					type: "updatedCompleted",
 					id,
 					newCompleted: !!newCompleted,
-				}),
-		);
-
-		this.db.createFunction(
-			"changed_completed_count_fn",
-			() => this._dispatchEvent("changedItemCounts", this.getStatusCounts()),
+				})
 		);
 
 		this.db.exec(`
 CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
   BEGIN
     SELECT inserted_item_fn(new.id, new.title, new.completed);
-    SELECT changed_completed_count_fn() WHERE is_direct_mode();
   END;
 
 CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
   BEGIN
     SELECT deleted_item_fn(old.id);
-    SELECT changed_completed_count_fn() WHERE is_direct_mode();
   END;
 
 CREATE TRIGGER IF NOT EXISTS update_title_trigger AFTER UPDATE OF title ON todos
@@ -81,22 +77,15 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
   WHEN old.completed <> new.completed
   BEGIN
     SELECT updated_completed_fn(new.id, new.completed);
-    SELECT changed_completed_count_fn() WHERE is_direct_mode();
   END;
 `);
-		this.listeners = new Map();
+		this.listeners = new Set();
 	}
 
-	_dispatchEvent = (type, data) => {
-		const set = this.listeners.get(type);
-		if (set) set.forEach((listener) => setTimeout(listener(data)));
-	};
+	_dispatchEvent = (data) =>
+		this.listeners.forEach((listener) => setTimeout(listener(data)));
 
-	addEventListener = (type, listener) => {
-		let set = this.listeners.get(type);
-		if (set === undefined) this.listeners.set(type, (set = new Set()));
-		set.add(listener);
-	};
+	addEventListener = (listener) => this.listeners.add(listener);
 
 	getItemTitle = ($id) =>
 		this.db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
@@ -142,18 +131,13 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
 	// we use this function to wrap bulk operations on completed statuses
 	// so that we can dispatch the changedItemCounts event only once
 	_bulkStatusUpdate = (bulkOperation) => {
-		const beforeCount = this.getStatusCounts();
+		this.eventQueue.length = 0;
 		this.directMode = false;
 		const result = bulkOperation();
 		this.directMode = true;
-		const afterCounts = this.getStatusCounts();
-		// count changed during bulk operation so we dispatch the event
-		if (
-			beforeCount.active !== afterCounts.active ||
-			beforeCount.completed !== afterCounts.completed
-		) {
-			this._dispatchEvent("changedItemCounts", afterCounts);
-		}
+		const events = [...this.eventQueue];
+		this.eventQueue.length = 0;
+		this._dispatchEvent({ type: "batch", events });
 		return result;
 	};
 

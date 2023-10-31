@@ -10,35 +10,7 @@ export default class Controller {
 		this.database = database;
 		this.view = view;
 
-		database.addEventListener('insertedItem', (item) => {
-			this.view.clearNewTodo();
-			const route = this._activeRoute;
-			if (route === '' || item.completed === (route === 'completed'))
-				this.view.addItem(item);
-		});
-
-		database.addEventListener('deletedItem', ({ id }) =>
-			this.view.removeItem(id)
-		);
-
-		database.addEventListener('updatedTitle', ({ id, newTitle }) =>
-			this.view.editItemDone(id, newTitle)
-		);
-
-		database.addEventListener("updatedCompleted", ({ id, newCompleted }) => {
-			const route = this._activeRoute;
-			if (route === '') return this.view.setItemComplete(id, newCompleted);
-			const isCompletedRoute = route === 'completed';
-			// item was filtered out by the route, so remove it
-			if (newCompleted !== isCompletedRoute) return this.view.removeItem(id);
-			// item was toggled into view, but the view only supports adding items at the end, so re-render the whole list
-			const items = this.database.getItemsByCompletedStatus(isCompletedRoute);
-			this.view.showItems(items);
-		});
-
-		database.addEventListener('changedItemCounts', (counts) =>
-			this._updateViewCounts(counts)
-		);
+		this.database.addEventListener(this._processEvent);
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -48,7 +20,66 @@ export default class Controller {
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
 
-		this._activeRoute = '';
+		// todo rename to currentRoute or something
+		this._activeRoute = "";
+	}
+
+	_processEvent = (outerEvent) => {
+		const route = this._activeRoute;
+		const isCompletedRoute = route === "completed";
+
+		const processSingleEvent = (event) => {
+			const { type, id } = event;
+			switch (type) {
+				case "insertedItem": {
+					this.view.clearNewTodo();
+					// add item if it should be visible in the current route
+					if (route === "" || event.completed === isCompletedRoute)
+						this.view.addItem(event);
+					return;
+				}
+				case "deletedItem":
+					return this.view.removeItem(id);
+				case "updatedTitle":
+					return this.view.editItemDone(id, event.newTitle);
+				case "updatedCompleted": {
+					const { newCompleted } = event;
+					if (route === "") return this.view.setItemComplete(id, newCompleted);
+					// item was filtered out by the route, so remove it
+					if (newCompleted !== isCompletedRoute) this.view.removeItem(id);
+					return;
+				}
+				default:
+					throw new Error("unknown event type " + type);
+			}
+		};
+
+		const events =
+			outerEvent.type === "batch" ? outerEvent.events : [outerEvent];
+		// if we are in a filtered route and an item was toggled into view, we need to reload all items
+		const wasToggledIntoView = ({ type, newCompleted }) =>
+			type === "updatedCompleted" && newCompleted === isCompletedRoute;
+		if (route !== "" && events.some(wasToggledIntoView)) {
+			this._loadAllItemsForRoute();
+		} else {
+			events.forEach(processSingleEvent);
+		}
+
+		// these events can change the counts of completed, active and total todos
+		const isCompletedChangeEvent = ({ type }) =>
+			type === "insertedItem" ||
+			type === "updatedCompleted" ||
+			type === "deletedItem";
+		if (events.some(isCompletedChangeEvent)) this._updateViewCounts();
+	};
+
+	_loadAllItemsForRoute() {
+		const route = this._activeRoute;
+		this.view.showItems(
+			route === ""
+				? this.database.getAllItems()
+				: this.database.getItemsByCompletedStatus(route === 'completed')
+		);
 	}
 
 	/**
@@ -57,20 +88,14 @@ export default class Controller {
 	 * @param {string} raw '' | '#/' | '#/active' | '#/completed'
 	 */
 	setView(raw) {
-		const route = this._activeRoute = raw.replace(/^#\//, '');
+		this._activeRoute = raw.replace(/^#\//, '');
 
 		// these following items and status count requests should be done in a transaction,
 		// otherwise we risk having inconsistencies between the two,
 		// however since we are calling the database synchronously we don't need to worry for now
-		const items =
-			route === ''
-				? this.database.getAllItems()
-				: this.database.getItemsByCompletedStatus(route === 'completed');
-		const statusCounts = this.database.getStatusCounts();
-
-		this.view.showItems(items);
-		this._updateViewCounts(statusCounts);
-		this.view.updateFilterButtons(route);
+		this._loadAllItemsForRoute();
+		this._updateViewCounts();
+		this.view.updateFilterButtons(this._activeRoute);
 	}
 
 	/**
@@ -131,7 +156,9 @@ export default class Controller {
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateViewCounts({ active, completed }) {
+	_updateViewCounts() {
+		const { active, completed } = this.database.getStatusCounts();
+
 		this.view.setItemsLeft(active);
 		this.view.setClearCompletedButtonVisibility(completed > 0);
 
