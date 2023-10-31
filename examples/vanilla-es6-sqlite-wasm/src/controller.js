@@ -13,7 +13,7 @@ export default class Controller {
 		database.addEventListener('insertedItem', (item) => {
 			this.view.clearNewTodo();
 			const route = this._activeRoute;
-			if (route === '' || !!item.completed === (route === 'completed'))
+			if (route === '' || item.completed === (route === 'completed'))
 				this.view.addItem(item);
 		});
 
@@ -30,7 +30,7 @@ export default class Controller {
 			if (route === '') return this.view.setItemComplete(id, newCompleted);
 			const isCompletedRoute = route === 'completed';
 			// item was filtered out by the route, so remove it
-			if (!!newCompleted !== isCompletedRoute) return this.view.removeItem(id);
+			if (newCompleted !== isCompletedRoute) return this.view.removeItem(id);
 			// item was toggled into view, but the view only supports adding items at the end, so re-render the whole list
 			const items = this.database.getItemsByCompletedStatus(isCompletedRoute);
 			this.view.showItems(items);
