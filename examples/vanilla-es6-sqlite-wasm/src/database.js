@@ -24,16 +24,12 @@ CREATE TABLE IF NOT EXISTS todos (
 		this.db.exec(`CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`);
 
 		const dispatchChangedCompletedCount = () =>
-			this._dispatchEvent({
-				type: 'changedCompletedCount',
-				...this.getStatusCounts(),
-			});
+			this._dispatchEvent('changedCompletedCount', this.getStatusCounts());
 
 		this.db.createFunction(
 			'inserted_item_fn',
 			(_ctxPtr, id, title, completed) => {
-				this._dispatchEvent({
-					type: 'insertedItem',
+				this._dispatchEvent('insertedItem', {
 					id,
 					title,
 					completed: !!completed,
@@ -43,17 +39,16 @@ CREATE TABLE IF NOT EXISTS todos (
 		);
 
 		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) => {
-			this._dispatchEvent({ type: 'deletedItem', id });
+			this._dispatchEvent('deletedItem', { id });
 			dispatchChangedCompletedCount();
 		});
 
 		this.db.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
-			this._dispatchEvent({ type: 'updatedTitle', id, title })
+			this._dispatchEvent('updatedTitle', { id, title })
 		);
 
 		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
-			this._dispatchEvent({
-				type: 'updatedCompleted',
+			this._dispatchEvent('updatedCompleted', {
 				id,
 				completed: !!completed,
 			});
@@ -92,7 +87,7 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 				event.key === 'kvvfs-local-jrnl' &&
 				event.newValue === null
 			)
-				this._dispatchEvent({ type: 'updateAllTodos' });
+				this._dispatchEvent('updateAllTodos');
 		});
 
 		this.listeners = new Map();
@@ -102,8 +97,8 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 		if (activeCount === 0 && completedCount === 0) this.davinci();
 	}
 
-	_dispatchEvent = (data) =>
-		this.listeners.get(data.type)?.forEach((listener) => listener(data));
+	_dispatchEvent = (type, data) =>
+		this.listeners.get(type)?.forEach((listener) => listener(data));
 
 	addEventListener = (type, listener) => {
 		let set = this.listeners.get(type);
