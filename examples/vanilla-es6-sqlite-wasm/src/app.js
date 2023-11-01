@@ -3,17 +3,11 @@ import TodoDatabase from './database.js';
 import { $on } from './helpers.js';
 import Template from './template.js';
 import View from './view.js';
-import sqlite3InitModule from '../node_modules/@sqlite.org/sqlite-wasm/index.mjs';
 
 const template = new Template();
 const view = new View(template);
 
-const sqlite3 = await sqlite3InitModule({
-	print: (...args) => console.log(...args),
-	printErr: (...args) => console.error(...args),
-});
-const sqlDatabase = new sqlite3.oo1.JsStorageDb('local');
-const todoDatabase = new TodoDatabase(sqlDatabase);
+const todoDatabase = new TodoDatabase();
 /**
  * @type {Controller}
  */
@@ -21,23 +15,8 @@ const controller = new Controller(todoDatabase, view);
 const updateView = () => controller.setView(document.location.hash);
 updateView();
 $on(window, 'hashchange', updateView);
-// listen for changes from other sessions
-addEventListener('storage', (event) => {
-	// when other sessions sqlite clears the journal, it means it has committed and we can update our view
-	if (
-		event.storageArea === localStorage &&
-		event.key === 'kvvfs-local-jrnl' &&
-		event.newValue === null
-	)
-		updateView();
-});
 
 // some debugging helpers
-window.execSQL = (sql) => {
-	const rows = sqlDatabase.selectObjects(sql);
-	if (rows.length > 0) console.table(rows);
-	else console.log('empty result set');
-};
 window.dumpTodos = () =>
 	console.table(
 		Object.fromEntries(

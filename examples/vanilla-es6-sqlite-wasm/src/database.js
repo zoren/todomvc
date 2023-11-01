@@ -1,9 +1,16 @@
+import sqlite3InitModule from '../node_modules/@sqlite.org/sqlite-wasm/index.mjs';
+
+const sqlite3 = await sqlite3InitModule({
+	print: (...args) => console.log(...args),
+	printErr: (...args) => console.error(...args),
+});
+
 export default class TodoDatabase {
 	/**
 	 * @param  {!Database} sqlDatabase A Database instance
 	 */
-	constructor(db) {
-		this.db = db;
+	constructor() {
+		this.db = new sqlite3.oo1.JsStorageDb('local');
 
 		this.db.exec(`
 		CREATE TABLE IF NOT EXISTS todos (
@@ -77,6 +84,18 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
     SELECT updated_completed_fn(new.id, new.completed);
   END;
 `);
+
+		// listen for changes from other sessions
+		addEventListener('storage', (event) => {
+			// when other session clears the journal, it means it has committed potentially changing all data
+			if (
+				event.storageArea === localStorage &&
+				event.key === 'kvvfs-local-jrnl' &&
+				event.newValue === null
+			)
+				this._dispatchEvent({ type: 'updateAllTodos' });
+		});
+
 		this.listeners = new Map();
 	}
 

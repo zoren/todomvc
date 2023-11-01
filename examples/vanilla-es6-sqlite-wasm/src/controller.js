@@ -44,6 +44,8 @@ export default class Controller {
 			this._updateViewCounts(event)
 		);
 
+		this.database.addEventListener('updateAllTodos', this._reloadView);
+
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
 		view.bindEditItemCancel(this.editItemCancel.bind(this));
@@ -78,7 +80,7 @@ export default class Controller {
 		this._reloadView();
 	}
 
-	_reloadView() {
+	_reloadView = () => {
 		const route = this._currentRoute;
 		this.view.showItems(
 			route === ''
