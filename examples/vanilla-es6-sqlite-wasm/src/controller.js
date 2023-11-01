@@ -45,7 +45,12 @@ export default class Controller {
 				if (route === "") return this.view.setItemComplete(id, completed);
 				// item was filtered out by the route, so remove it
 				if (completed !== isCompletedRoute) this.view.removeItem(id);
-				else this.view.addItem(event);
+				else
+					this.view.addItem({
+						id,
+						title: this.database.getItemTitle(id),
+						completed,
+					});
 				return;
 			}
 			case "changedCompletedCount":
