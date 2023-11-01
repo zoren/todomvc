@@ -13,16 +13,15 @@ export default class TodoDatabase {
 		this.db = new sqlite3.oo1.JsStorageDb('local');
 
 		this.db.exec(`
-		CREATE TABLE IF NOT EXISTS todos (
-			id INTEGER PRIMARY KEY,
-			title TEXT NOT NULL,
-			completed INTEGER NOT NULL DEFAULT 0,
-			CHECK (title <> ''),
-			CHECK (completed IN (0, 1)) -- SQLite uses integers for booleans
-			)`);
+CREATE TABLE IF NOT EXISTS todos (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  completed INTEGER NOT NULL DEFAULT 0,
+  CHECK (title <> ''),
+  CHECK (completed IN (0, 1)) -- SQLite uses integers for booleans
+  )`);
 		// we will need to filter on completed so we create an index
-		this.db.exec(`
-		CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`);
+		this.db.exec(`CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`);
 
 		const dispatchChangedCompletedCount = () =>
 			this._dispatchEvent({
@@ -157,9 +156,9 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 
 	getStatusCounts = () =>
 		this.db.selectObject(
-			`SELECT
-				COUNT(IIF(completed, NULL, 1)) AS activeCount,
-				COUNT(IIF(completed, 1, NULL)) AS completedCount FROM todos`
+`SELECT
+  COUNT(IIF(completed, NULL, 1)) AS activeCount,
+  COUNT(IIF(completed, 1, NULL)) AS completedCount FROM todos`
 		);
 
 	deleteCompletedItems = () =>
