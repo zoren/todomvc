@@ -44,6 +44,10 @@ export default class Controller {
 
 		this.database.addEventListener('updateAllTodos', this._reloadView);
 
+		this.database.addEventListener('sqlTraceExpandedStatement', (sql) => {
+			view.appendSQLTrace(sql.expanded)
+		});
+
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
 		view.bindEditItemCancel(this.editItemCancel.bind(this));

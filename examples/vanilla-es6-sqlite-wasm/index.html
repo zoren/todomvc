@@ -1,9 +1,37 @@
 <!doctype html>
-<html lang="en" data-framework="es6">
+<html lang="en" data-framework="sqlite-wasm">
 	<head>
 		<meta charset="utf-8">
-		<title>Vanilla ES6 • TodoMVC</title>
+		<title>SQLite • TodoMVC</title>
 		<link rel="stylesheet" href="node_modules/todomvc-app-css/index.css">
+		<!-- https://jsfiddle.net/huxXT/19/ -->
+		<style>
+			.sql-console {
+				background:hsla(0, 0%, 0%, 0.42);
+				height: 150px;
+				width:100%;
+				top:0px;
+				left:0px;
+				position:fixed;
+				z-index:999;
+				display: block;
+				color:#fff;
+				text-align:left;
+				resize: vertical;
+				overflow: auto;
+			}
+			.sql-trace {
+        color: #33ff00;
+				margin-top: auto;
+				display: block;
+				white-space: pre-wrap;
+				font-family: monospace;
+				height: 150px;
+				overflow-y: auto;
+				display: flex;
+				flex-direction: column-reverse;
+			}
+		</style>
 	</head>
 	<body>
 		<section class="todoapp">
@@ -31,6 +59,11 @@
 					<button class="clear-completed">Clear completed</button>
 				</footer>
 			</section>
+		</section>
+		<section class="sql-console">
+			<form>
+				<output class="sql-trace"></output>
+			</form>
 		</section>
 		<footer class="info">
 			<p>Double-click to edit a todo</p>

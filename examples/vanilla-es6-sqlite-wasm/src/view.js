@@ -21,6 +21,17 @@ export default class View {
 		$delegate(this.$todoList, 'li label', 'dblclick', ({target}) => {
 			this.editItem(target);
 		});
+
+		this.$sqlTrace = qs('.sql-trace');
+		this.$sqlConsole = qs('.sql-console');
+
+		window.addEventListener('keypress', (event) => {
+			if (event.key == '`') {
+				event.preventDefault();
+				const style = this.$sqlConsole.style;
+				style.display = style.display == 'none' ? 'block' : 'none';
+			}
+		});
 	}
 
 
@@ -243,5 +254,9 @@ export default class View {
 				handler(_itemId(target));
 			}
 		});
+	}
+
+	appendSQLTrace(sql) {
+		this.$sqlTrace.textContent += sql + '\n';
 	}
 }
