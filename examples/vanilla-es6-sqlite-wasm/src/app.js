@@ -1,6 +1,6 @@
 import Controller from './controller.js';
 import TodoDatabase from './database.js';
-import {$on} from './helpers.js';
+import { $on } from './helpers.js';
 import Template from './template.js';
 import View from './view.js';
 import sqlite3InitModule from '../node_modules/@sqlite.org/sqlite-wasm/index.mjs';
@@ -11,7 +11,7 @@ const view = new View(template);
 const sqlite3 = await sqlite3InitModule({
 	print: (...args) => console.log(...args),
 	printErr: (...args) => console.error(...args),
-})
+});
 const sqlDatabase = new sqlite3.oo1.JsStorageDb('local');
 const todoDatabase = new TodoDatabase(sqlDatabase);
 /**
@@ -22,11 +22,11 @@ const updateView = () => controller.setView(document.location.hash);
 updateView();
 $on(window, 'hashchange', updateView);
 // listen for changes from other sessions
-addEventListener("storage", (event) => {
+addEventListener('storage', (event) => {
 	// when other sessions sqlite clears the journal, it means it has committed and we can update our view
 	if (
 		event.storageArea === localStorage &&
-		event.key === "kvvfs-local-jrnl" &&
+		event.key === 'kvvfs-local-jrnl' &&
 		event.newValue === null
 	)
 		updateView();

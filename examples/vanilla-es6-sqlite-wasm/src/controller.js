@@ -10,28 +10,28 @@ export default class Controller {
 		this.database = database;
 		this.view = view;
 
-		this.database.addEventListener("insertedItem", (event) => {
+		this.database.addEventListener('insertedItem', (event) => {
 			this.view.clearNewTodo();
 			const route = this._currentRoute;
 			// add item if it should be visible in the current route
-			if (route === "" || event.completed === (route === "completed"))
+			if (route === '' || event.completed === (route === 'completed'))
 				this.view.addItem(event);
 		});
 
-		this.database.addEventListener("deletedItem", ({ id }) =>
+		this.database.addEventListener('deletedItem', ({ id }) =>
 			this.view.removeItem(id)
 		);
 
-		this.database.addEventListener("updatedTitle", ({ id, title }) =>
+		this.database.addEventListener('updatedTitle', ({ id, title }) =>
 			this.view.editItemDone(id, title)
 		);
 
-		this.database.addEventListener("updatedCompleted", ({ id, completed }) => {
+		this.database.addEventListener('updatedCompleted', ({ id, completed }) => {
 			const route = this._currentRoute;
 
-			if (route === "") return this.view.setItemComplete(id, completed);
+			if (route === '') return this.view.setItemComplete(id, completed);
 			// add/remove item if it should be visible in the current route
-			if (completed === (route === "completed"))
+			if (completed === (route === 'completed'))
 				this.view.addItem({
 					id,
 					title: this.database.getItemTitle(id),
@@ -40,7 +40,7 @@ export default class Controller {
 			else this.view.removeItem(id);
 		});
 
-		this.database.addEventListener("changedCompletedCount", (event) =>
+		this.database.addEventListener('changedCompletedCount', (event) =>
 			this._updateViewCounts(event)
 		);
 
@@ -52,7 +52,7 @@ export default class Controller {
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
 
-		this._currentRoute = "";
+		this._currentRoute = '';
 	}
 
 	/**
@@ -72,12 +72,12 @@ export default class Controller {
 	 * @param {string} rawLocationHash '' | '#/' | '#/active' | '#/completed'
 	 */
 	setView(rawLocationHash) {
-		const route = rawLocationHash.replace(/^#\//, "");
+		const route = rawLocationHash.replace(/^#\//, '');
 
 		this.view.showItems(
-			route === ""
+			route === ''
 				? this.database.getAllItems()
-				: this.database.getItemsByCompletedStatus(route === "completed")
+				: this.database.getItemsByCompletedStatus(route === 'completed')
 		);
 		this._updateViewCounts(this.database.getStatusCounts());
 		this.view.updateFilterButtons(route);

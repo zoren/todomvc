@@ -19,15 +19,15 @@ export default class TodoDatabase {
 
 		const dispatchChangedCompletedCount = () =>
 			this._dispatchEvent({
-				type: "changedCompletedCount",
+				type: 'changedCompletedCount',
 				...this.getStatusCounts(),
 			});
 
 		this.db.createFunction(
-			"inserted_item_fn",
+			'inserted_item_fn',
 			(_ctxPtr, id, title, completed) => {
 				this._dispatchEvent({
-					type: "insertedItem",
+					type: 'insertedItem',
 					id,
 					title,
 					completed: !!completed,
@@ -36,26 +36,23 @@ export default class TodoDatabase {
 			}
 		);
 
-		this.db.createFunction("deleted_item_fn", (_ctxPtr, id) => {
-			this._dispatchEvent({ type: "deletedItem", id });
+		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) => {
+			this._dispatchEvent({ type: 'deletedItem', id });
 			dispatchChangedCompletedCount();
 		});
 
-		this.db.createFunction("updated_title_fn", (_ctxPtr, id, title) =>
-			this._dispatchEvent({ type: "updatedTitle", id, title })
+		this.db.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
+			this._dispatchEvent({ type: 'updatedTitle', id, title })
 		);
 
-		this.db.createFunction(
-			"updated_completed_fn",
-			(_ctxPtr, id, completed) => {
-				this._dispatchEvent({
-					type: "updatedCompleted",
-					id,
-					completed: !!completed,
-				});
-				dispatchChangedCompletedCount();
-			}
-		);
+		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
+			this._dispatchEvent({
+				type: 'updatedCompleted',
+				id,
+				completed: !!completed,
+			});
+			dispatchChangedCompletedCount();
+		});
 
 		this.db.exec(`
 CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
@@ -90,13 +87,13 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
 		let set = this.listeners.get(type);
 		if (!set) this.listeners.set(type, (set = new Set()));
 		set.add(listener);
-	}
+	};
 
 	removeEventListener = (type, listener) => {
 		const set = this.listeners.get(type);
 		if (set) set.delete(listener);
 		if (set.size === 0) this.listeners.delete(type);
-	}
+	};
 
 	getItemTitle = ($id) =>
 		this.db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
@@ -115,9 +112,12 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
 			.map((item) => ({ ...item, completed: !!item.completed }));
 
 	addItem = ($title, completed) =>
-		this.db.exec(`INSERT INTO todos (title, completed) VALUES ($title, $completed)`, {
-			bind: { $title, $completed: !!completed },
-		});
+		this.db.exec(
+			`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
+			{
+				bind: { $title, $completed: !!completed },
+			}
+		);
 
 	setItemTitle = ($id, $title) =>
 		this.db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
