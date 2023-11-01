@@ -30,6 +30,8 @@ export default class TodoDatabase {
 			}
 		);
 
+		this.db = new oo1.JsStorageDb('local');
+
 		capi.sqlite3_trace_v2(
 			this.db,
 			capi.SQLITE_TRACE_STMT,
@@ -37,7 +39,6 @@ export default class TodoDatabase {
 			0 // passed in as ctxPtr to traceToEvents
 		);
 
-		this.db = new oo1.JsStorageDb('local');
 
 		this.db.exec(`
 CREATE TABLE IF NOT EXISTS todos (
