@@ -10,7 +10,34 @@ export default class TodoDatabase {
 	 * @param  {!Database} sqlDatabase A Database instance
 	 */
 	constructor() {
-		this.db = new sqlite3.oo1.JsStorageDb('local');
+		this.listeners = new Map();
+
+		const { capi, wasm, oo1 } = sqlite3;
+
+		const traceToEvents = wasm.installFunction(
+			'i(ippp)',
+			(traceEventCode, _ctxPtr, p, x) => {
+				if (traceEventCode !== capi.SQLITE_TRACE_STMT) return;
+				const preparedStatement = p;
+				const sqlTextCstr = x;
+				const sqlText = wasm.cstrToJs(sqlTextCstr);
+				if (sqlText.startsWith('--')) {
+					this._dispatchEvent('sqlTraceStatement', { sqlText });
+				} else {
+					const expanded = capi.sqlite3_expanded_sql(preparedStatement);
+					this._dispatchEvent('sqlTraceExpandedStatement', { expanded });
+				}
+			}
+		);
+
+		capi.sqlite3_trace_v2(
+			this.db,
+			capi.SQLITE_TRACE_STMT,
+			traceToEvents,
+			0 // passed in as ctxPtr to traceToEvents
+		);
+
+		this.db = new oo1.JsStorageDb('local');
 
 		this.db.exec(`
 CREATE TABLE IF NOT EXISTS todos (
@@ -91,8 +118,6 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 			)
 				this._dispatchEvent('updateAllTodos');
 		});
-
-		this.listeners = new Map();
 
 		// if there are no items, add some
 		const { activeCount, completedCount } = this.getStatusCounts();
