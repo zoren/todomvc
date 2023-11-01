@@ -36,35 +36,33 @@ addEventListener('storage', (event) => {
 window.execSQL = (sql) => {
 	const rows = sqlDatabase.selectObjects(sql);
 	if (rows.length > 0) console.table(rows);
-};
-window.bulkExecSQL = (sql) => {
-	const rows = todoDatabase.bulkExec(sql);
-	if (rows.length > 0) console.table(rows);
+	else console.log('empty result set');
 };
 window.dumpTodos = () =>
 	console.table(
 		Object.fromEntries(
-			sqlDatabase
-				.selectObjects("SELECT * FROM todos")
-				.map(({ id, title, completed }) => [
-					id,
-					{ title, completed: !!completed },
-				])
+			todoDatabase
+				.getAllItems()
+				.map(({ id, title, completed }) => [id, { title, completed }])
 		)
 	);
-window.todoDB = todoDatabase;
 
 window.davinci = () => {
-	sqlDatabase.exec(`DELETE FROM todos;`);
+	todoDatabase.getAllItems().forEach(({ id }) => todoDatabase.removeItem(id));
 	const davincisTodos = [
-		{ title: "Design a new flying machine concept.", completed: true },
-		{ title: "Finish sketch of the Last Supper.", completed: true },
-		{ title: "Research the mechanics of bird flight.", completed: true },
-		{ title: "Experiment with new painting techniques.", completed: false },
-		{ title: "Write notes on fluid dynamics.", completed: false },
+		{ title: 'Design a new flying machine concept.', completed: true },
+		{ title: 'Finish sketch of the Last Supper.', completed: true },
+		{ title: 'Research the mechanics of bird flight.', completed: true },
+		{ title: 'Experiment with new painting techniques.', completed: false },
+		{ title: 'Write notes on fluid dynamics.', completed: false },
 	];
 	for (const { title, completed } of davincisTodos) {
 		todoDatabase.addItem(title, completed);
 	}
 };
-if (todoDatabase.getAllItems().length === 0) davinci();
+
+{
+	const { activeCount, completedCount } = todoDatabase.getStatusCounts();
+	if (activeCount === 0 && completedCount === 0) davinci();
+}
+window.todoDB = todoDatabase;
