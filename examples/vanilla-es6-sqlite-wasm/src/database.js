@@ -123,8 +123,9 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 		});
 
 		// if there are no items, add some
-		const { activeCount, completedCount } = this.getStatusCounts();
-		if (activeCount === 0 && completedCount === 0) this.davinci();
+		const activeCount = this.getActiveItemCount();
+		const hasCompleted = this.hasCompletedItems();
+		if (activeCount === 0 && !hasCompleted) this.davinci();
 	}
 
 	addEventListener = (type, listener) => {
@@ -176,10 +177,11 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 	deleteItem = ($id) =>
 		this.db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
 
-	getStatusCounts = () =>
-		this.db.selectObject(
-			`SELECT COALESCE(SUM(NOT completed), 0) AS activeCount, COALESCE(SUM(completed), 0) AS completedCount FROM todos`
-		);
+	getActiveItemCount = () =>
+		this.db.selectValue(`SELECT COUNT() FROM todos WHERE completed = 0`);
+
+	hasCompletedItems = () =>
+		!!this.db.selectValue(`SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)`);
 
 	deleteCompletedItems = () =>
 		this.db.exec(`DELETE FROM todos WHERE completed = 1`);

@@ -64,13 +64,14 @@ export default class Controller {
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
 	_updateViewCounts = () => {
-		const { activeCount, completedCount } = this.database.getStatusCounts();
+		const activeCount = this.database.getActiveItemCount();
+		const hasCompleted = this.database.hasCompletedItems();
 
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
-		this.view.setClearCompletedButtonVisibility(completedCount > 0);
-		this.view.setMainVisibility(activeCount > 0 || completedCount > 0);
+		this.view.setClearCompletedButtonVisibility(hasCompleted);
+		this.view.setMainVisibility(activeCount > 0 || hasCompleted);
 	};
 
 	/**
