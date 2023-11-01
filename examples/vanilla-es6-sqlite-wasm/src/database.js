@@ -12,6 +12,9 @@ export default class TodoDatabase {
 	constructor() {
 		this.listeners = new Map();
 
+		const _dispatchEvent = (type, data) =>
+			this.listeners.get(type)?.forEach((listener) => listener(data));
+
 		const { capi, wasm, oo1 } = sqlite3;
 
 		const traceToEvents = wasm.installFunction(
@@ -22,10 +25,10 @@ export default class TodoDatabase {
 				const sqlTextCstr = x;
 				const sqlText = wasm.cstrToJs(sqlTextCstr);
 				if (sqlText.startsWith('--')) {
-					this._dispatchEvent('sqlTraceStatement', { sqlText });
+					_dispatchEvent('sqlTraceStatement', { sqlText });
 				} else {
 					const expanded = capi.sqlite3_expanded_sql(preparedStatement);
-					this._dispatchEvent('sqlTraceExpandedStatement', { expanded });
+					_dispatchEvent('sqlTraceExpandedStatement', { expanded });
 				}
 			}
 		);
@@ -54,12 +57,12 @@ CREATE TABLE IF NOT EXISTS todos (
 		);
 
 		const dispatchChangedCompletedCount = () =>
-			this._dispatchEvent('changedCompletedCount', this.getStatusCounts());
+			_dispatchEvent('changedCompletedCount', this.getStatusCounts());
 
 		this.db.createFunction(
 			'inserted_item_fn',
 			(_ctxPtr, id, title, completed) => {
-				this._dispatchEvent('insertedItem', {
+				_dispatchEvent('insertedItem', {
 					id,
 					title,
 					completed: !!completed,
@@ -69,16 +72,16 @@ CREATE TABLE IF NOT EXISTS todos (
 		);
 
 		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) => {
-			this._dispatchEvent('deletedItem', { id });
+			_dispatchEvent('deletedItem', { id });
 			dispatchChangedCompletedCount();
 		});
 
 		this.db.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
-			this._dispatchEvent('updatedTitle', { id, title })
+			_dispatchEvent('updatedTitle', { id, title })
 		);
 
 		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
-			this._dispatchEvent('updatedCompleted', {
+			_dispatchEvent('updatedCompleted', {
 				id,
 				completed: !!completed,
 			});
@@ -117,16 +120,13 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 				event.key === 'kvvfs-local-jrnl' &&
 				event.newValue === null
 			)
-				this._dispatchEvent('updateAllTodos');
+				_dispatchEvent('updateAllTodos');
 		});
 
 		// if there are no items, add some
 		const { activeCount, completedCount } = this.getStatusCounts();
 		if (activeCount === 0 && completedCount === 0) this.davinci();
 	}
-
-	_dispatchEvent = (type, data) =>
-		this.listeners.get(type)?.forEach((listener) => listener(data));
 
 	addEventListener = (type, listener) => {
 		let set = this.listeners.get(type);
