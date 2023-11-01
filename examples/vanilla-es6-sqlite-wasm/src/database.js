@@ -55,23 +55,23 @@ export default class TodoDatabase {
 		});
 
 		this.db.exec(`
-CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
+CREATE TEMPORARY TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
   BEGIN
     SELECT inserted_item_fn(new.id, new.title, new.completed);
   END;
 
-CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
+CREATE TEMPORARY TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
   BEGIN
     SELECT deleted_item_fn(old.id);
   END;
 
-CREATE TRIGGER IF NOT EXISTS update_title_trigger AFTER UPDATE OF title ON todos
+CREATE TEMPORARY TRIGGER IF NOT EXISTS update_title_trigger AFTER UPDATE OF title ON todos
   WHEN old.title <> new.title
   BEGIN
     SELECT updated_title_fn(new.id, new.title);
   END;
 
-CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed ON todos
+CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed ON todos
   WHEN old.completed <> new.completed
   BEGIN
     SELECT updated_completed_fn(new.id, new.completed);
