@@ -74,10 +74,10 @@ export default class Controller {
 	/**
 	 * Set and render the active route.
 	 *
-	 * @param {string} raw '' | '#/' | '#/active' | '#/completed'
+	 * @param {string} rawLocationHash '' | '#/' | '#/active' | '#/completed'
 	 */
-	setView(raw) {
-		const route = (this._currentRoute = raw.replace(/^#\//, ""));
+	setView(rawLocationHash) {
+		const route = rawLocationHash.replace(/^#\//, "");
 
 		this.view.showItems(
 			route === ""
@@ -85,7 +85,8 @@ export default class Controller {
 				: this.database.getItemsByCompletedStatus(route === "completed")
 		);
 		this._updateViewCounts(this.database.getStatusCounts());
-		this.view.updateFilterButtons(this._currentRoute);
+		this.view.updateFilterButtons(route);
+		this._currentRoute = route;
 	}
 
 	/**
