@@ -42,7 +42,6 @@ export default class TodoDatabase {
 			0 // passed in as ctxPtr to traceToEvents
 		);
 
-
 		this.db.exec(`
 CREATE TABLE IF NOT EXISTS todos (
   id INTEGER PRIMARY KEY,
@@ -179,9 +178,7 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 
 	getStatusCounts = () =>
 		this.db.selectObject(
-			`SELECT
-  COUNT(IIF(completed, NULL, 1)) AS activeCount,
-  COUNT(IIF(completed, 1, NULL)) AS completedCount FROM todos`
+			`SELECT COALESCE(SUM(NOT completed), 0) AS activeCount, COALESCE(SUM(completed), 0) AS completedCount FROM todos`
 		);
 
 	deleteCompletedItems = () =>
