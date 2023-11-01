@@ -73,15 +73,19 @@ export default class Controller {
 	 */
 	setView(rawLocationHash) {
 		const route = rawLocationHash.replace(/^#\//, '');
+		this.view.updateFilterButtons(route);
+		this._currentRoute = route;
+		this._reloadView();
+	}
 
+	_reloadView() {
+		const route = this._currentRoute;
 		this.view.showItems(
 			route === ''
 				? this.database.getAllItems()
 				: this.database.getItemsByCompletedStatus(route === 'completed')
 		);
 		this._updateViewCounts(this.database.getStatusCounts());
-		this.view.updateFilterButtons(route);
-		this._currentRoute = route;
 	}
 
 	/**
