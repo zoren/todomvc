@@ -80,13 +80,23 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
     SELECT updated_completed_fn(new.id, new.completed);
   END;
 `);
-		this.listeners = new Set();
+		this.listeners = new Map();
 	}
 
 	_dispatchEvent = (data) =>
-		this.listeners.forEach((listener) => setTimeout(listener(data)));
+		this.listeners.get(data.type)?.forEach((listener) => listener(data));
 
-	addEventListener = (listener) => this.listeners.add(listener);
+	addEventListener = (type, listener) => {
+		let set = this.listeners.get(type);
+		if (!set) this.listeners.set(type, (set = new Set()));
+		set.add(listener);
+	}
+
+	removeEventListener = (type, listener) => {
+		const set = this.listeners.get(type);
+		if (set) set.delete(listener);
+		if (set.size === 0) this.listeners.delete(type);
+	}
 
 	getItemTitle = ($id) =>
 		this.db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });

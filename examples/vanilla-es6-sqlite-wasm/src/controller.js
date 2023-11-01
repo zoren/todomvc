@@ -10,7 +10,39 @@ export default class Controller {
 		this.database = database;
 		this.view = view;
 
-		this.database.addEventListener(this._processEvent);
+		this.database.addEventListener("insertedItem", (event) => {
+			this.view.clearNewTodo();
+			const route = this._currentRoute;
+			// add item if it should be visible in the current route
+			if (route === "" || event.completed === (route === "completed"))
+				this.view.addItem(event);
+		});
+
+		this.database.addEventListener("deletedItem", ({ id }) =>
+			this.view.removeItem(id)
+		);
+
+		this.database.addEventListener("updatedTitle", ({ id, title }) =>
+			this.view.editItemDone(id, title)
+		);
+
+		this.database.addEventListener("updatedCompleted", ({ id, completed }) => {
+			const route = this._currentRoute;
+
+			if (route === "") return this.view.setItemComplete(id, completed);
+			// add/remove item if it should be visible in the current route
+			if (completed === (route === "completed"))
+				this.view.addItem({
+					id,
+					title: this.database.getItemTitle(id),
+					completed,
+				});
+			else this.view.removeItem(id);
+		});
+
+		this.database.addEventListener("changedCompletedCount", (event) =>
+			this._updateViewCounts(event)
+		);
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -22,43 +54,6 @@ export default class Controller {
 
 		this._currentRoute = "";
 	}
-
-	_processEvent = (event) => {
-		const route = this._currentRoute;
-		const isCompletedRoute = route === "completed";
-
-		const { type, id } = event;
-		switch (type) {
-			case "insertedItem": {
-				this.view.clearNewTodo();
-				// add item if it should be visible in the current route
-				if (route === "" || event.completed === isCompletedRoute)
-					this.view.addItem(event);
-				return;
-			}
-			case "deletedItem":
-				return this.view.removeItem(id);
-			case "updatedTitle":
-				return this.view.editItemDone(id, event.title);
-			case "updatedCompleted": {
-				const { completed } = event;
-				if (route === "") return this.view.setItemComplete(id, completed);
-				// item was filtered out by the route, so remove it
-				if (completed !== isCompletedRoute) this.view.removeItem(id);
-				else
-					this.view.addItem({
-						id,
-						title: this.database.getItemTitle(id),
-						completed,
-					});
-				return;
-			}
-			case "changedCompletedCount":
-				return this._updateViewCounts(event);
-			default:
-				throw new Error("unknown event type " + type);
-		}
-	};
 
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
