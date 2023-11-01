@@ -88,23 +88,27 @@ CREATE TABLE IF NOT EXISTS todos (
 		});
 
 		this.db.exec(`
-CREATE TEMPORARY TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
+DROP TRIGGER IF EXISTS insert_trigger;
+CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
   BEGIN
     SELECT inserted_item_fn(new.id, new.title, new.completed);
   END;
 
-CREATE TEMPORARY TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
+DROP TRIGGER IF EXISTS delete_trigger;
+CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
   BEGIN
     SELECT deleted_item_fn(old.id);
   END;
 
-CREATE TEMPORARY TRIGGER IF NOT EXISTS update_title_trigger AFTER UPDATE OF title ON todos
+DROP TRIGGER IF EXISTS update_title_trigger;
+CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
   WHEN old.title <> new.title
   BEGIN
     SELECT updated_title_fn(new.id, new.title);
   END;
 
-CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed ON todos
+DROP TRIGGER IF EXISTS update_completed_trigger;
+CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
   WHEN old.completed <> new.completed
   BEGIN
     SELECT updated_completed_fn(new.id, new.completed);
