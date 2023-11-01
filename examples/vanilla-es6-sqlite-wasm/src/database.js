@@ -97,6 +97,10 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 		});
 
 		this.listeners = new Map();
+
+		// if there are no items, add some
+		const { activeCount, completedCount } = this.getStatusCounts();
+		if (activeCount === 0 && completedCount === 0) this.davinci();
 	}
 
 	_dispatchEvent = (data) =>
@@ -165,4 +169,35 @@ CREATE TEMPORARY TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF 
 		this.db.exec(`UPDATE todos SET completed = $completed`, {
 			bind: { $completed },
 		});
+
+	// some demo helpers
+	execSQL = (sql) => {
+		const rows = this.db.selectObjects(sql);
+		if (rows.length > 0) console.table(rows);
+		else console.log('empty result set');
+	};
+
+	dumpTodos = () =>
+		console.table(
+			Object.fromEntries(
+				this.getAllItems().map(({ id, title, completed }) => [
+					id,
+					{ title, completed },
+				])
+			)
+		);
+
+	davinci = () => {
+		this.db.exec(`DELETE FROM todos`);
+		const davincisTodos = [
+			{ title: 'Design a new flying machine concept.', completed: true },
+			{ title: 'Finish sketch of the Last Supper.', completed: true },
+			{ title: 'Research the mechanics of bird flight.', completed: true },
+			{ title: 'Experiment with new painting techniques.', completed: false },
+			{ title: 'Write notes on fluid dynamics.', completed: false },
+		];
+		for (const { title, completed } of davincisTodos) {
+			this.addItem(title, completed);
+		}
+	};
 }
