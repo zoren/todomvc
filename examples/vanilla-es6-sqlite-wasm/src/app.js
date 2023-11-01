@@ -3,18 +3,28 @@ import TodoDatabase from './database.js';
 import { $on } from './helpers.js';
 import Template from './template.js';
 import View from './view.js';
+import sqlite3InitModule from '../node_modules/@sqlite.org/sqlite-wasm/index.mjs';
 
-const template = new Template();
-const view = new View(template);
+const main = async () => {
+	const template = new Template();
+	const view = new View(template);
 
-const todoDatabase = new TodoDatabase();
-/**
- * @type {Controller}
- */
-const controller = new Controller(todoDatabase, view);
-const updateView = () => controller.setView(document.location.hash);
-updateView();
-$on(window, 'hashchange', updateView);
+	const sqlite3 = await sqlite3InitModule({
+		print: (...args) => console.log(...args),
+		printErr: (...args) => console.error(...args),
+	});
 
-// to make demos easier
-window.todoDB = todoDatabase;
+	const todoDatabase = new TodoDatabase(sqlite3);
+	/**
+	 * @type {Controller}
+	 */
+	const controller = new Controller(todoDatabase, view);
+	const updateView = () => controller.setView(document.location.hash);
+	updateView();
+	$on(window, 'hashchange', updateView);
+
+	// to make demos easier
+	window.todoDB = todoDatabase;
+};
+
+main();

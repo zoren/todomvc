@@ -1,6 +1,10 @@
 {
   "private": true,
-  "scripts": {},
+  "scripts": {
+    "build-local": "vite build",
+    "build": "vite build --base=/todomvsqlite/",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "^3.43.2-build1",
     "todomvc-app-css": "^2.0.1",
@@ -9,5 +13,8 @@
   "prettier": {
     "semi": true,
     "singleQuote": true
+  },
+  "devDependencies": {
+    "vite": "^4.5.0"
   }
 }

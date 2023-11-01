@@ -1,15 +1,8 @@
-import sqlite3InitModule from '../node_modules/@sqlite.org/sqlite-wasm/index.mjs';
-
-const sqlite3 = await sqlite3InitModule({
-	print: (...args) => console.log(...args),
-	printErr: (...args) => console.error(...args),
-});
-
 export default class TodoDatabase {
 	/**
 	 * @param  {!Database} sqlDatabase A Database instance
 	 */
-	constructor() {
+	constructor(sqlite3) {
 		this.listeners = new Map();
 
 		const _dispatchEvent = (type, data) =>
