@@ -44,9 +44,10 @@ export default class Controller {
 
 		this.database.addEventListener('updateAllTodos', this._reloadView);
 
-		this.database.addEventListener('sqlTraceExpandedStatement', (sql) => {
-			view.appendSQLTrace(sql.expanded)
-		});
+		this.database.addEventListener(
+			'sqlTraceExpandedStatement',
+			({ expanded }) => view.appendSQLTrace(expanded)
+		);
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -62,13 +63,15 @@ export default class Controller {
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateViewCounts = ({ activeCount, completedCount }) => {
+	_updateViewCounts = () => {
+		const { activeCount, completedCount } = this.database.getStatusCounts();
+
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
 		this.view.setClearCompletedButtonVisibility(completedCount > 0);
 		this.view.setMainVisibility(activeCount > 0 || completedCount > 0);
-	}
+	};
 
 	/**
 	 * Set and render the active route.
@@ -89,8 +92,8 @@ export default class Controller {
 				? this.database.getAllItems()
 				: this.database.getItemsByCompletedStatus(route === 'completed')
 		);
-		this._updateViewCounts(this.database.getStatusCounts());
-	}
+		this._updateViewCounts();
+	};
 
 	/**
 	 * Add an Item to the Store and display it in the list.

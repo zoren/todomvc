@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS todos (
 		);
 
 		const dispatchChangedCompletedCount = () =>
-			_dispatchEvent('changedCompletedCount', this.getStatusCounts());
+			_dispatchEvent('changedCompletedCount');
 
 		this.db.createFunction(
 			'inserted_item_fn',
