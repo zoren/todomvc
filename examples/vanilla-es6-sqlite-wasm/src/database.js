@@ -17,20 +17,29 @@ export default class TodoDatabase {
 		this.db.exec(`
 		CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`);
 
+		const dispatchChangedCompletedCount = () =>
+			this._dispatchEvent({
+				type: "changedCompletedCount",
+				...this.getStatusCounts(),
+			});
+
 		this.db.createFunction(
 			"inserted_item_fn",
-			(_ctxPtr, id, title, completed) =>
+			(_ctxPtr, id, title, completed) => {
 				this._dispatchEvent({
 					type: "insertedItem",
 					id,
 					title,
 					completed: !!completed,
-				})
+				});
+				dispatchChangedCompletedCount();
+			}
 		);
 
-		this.db.createFunction("deleted_item_fn", (_ctxPtr, id) =>
-			this._dispatchEvent({ type: "deletedItem", id })
-		);
+		this.db.createFunction("deleted_item_fn", (_ctxPtr, id) => {
+			this._dispatchEvent({ type: "deletedItem", id });
+			dispatchChangedCompletedCount();
+		});
 
 		this.db.createFunction("updated_title_fn", (_ctxPtr, id, title) =>
 			this._dispatchEvent({ type: "updatedTitle", id, title })
@@ -38,33 +47,26 @@ export default class TodoDatabase {
 
 		this.db.createFunction(
 			"updated_completed_fn",
-			(_ctxPtr, id, title, completed) =>
+			(_ctxPtr, id, title, completed) => {
 				this._dispatchEvent({
 					type: "updatedCompleted",
 					id,
 					title,
 					completed: !!completed,
-				})
-		);
-
-		this.db.createFunction("changed_completed_count_fn", (_ctxPtr) =>
-			this._dispatchEvent({
-				type: "changedCompletedCount",
-				...this.getStatusCounts(),
-			})
+				});
+				dispatchChangedCompletedCount();
+			}
 		);
 
 		this.db.exec(`
 CREATE TRIGGER IF NOT EXISTS insert_trigger AFTER INSERT ON todos
   BEGIN
     SELECT inserted_item_fn(new.id, new.title, new.completed);
-    SELECT changed_completed_count_fn();
   END;
 
 CREATE TRIGGER IF NOT EXISTS delete_trigger AFTER DELETE ON todos
   BEGIN
     SELECT deleted_item_fn(old.id);
-    SELECT changed_completed_count_fn();
   END;
 
 CREATE TRIGGER IF NOT EXISTS update_title_trigger AFTER UPDATE OF title ON todos
@@ -77,7 +79,6 @@ CREATE TRIGGER IF NOT EXISTS update_completed_trigger AFTER UPDATE OF completed 
   WHEN old.completed <> new.completed
   BEGIN
     SELECT updated_completed_fn(new.id, new.title, new.completed);
-    SELECT changed_completed_count_fn();
   END;
 `);
 		this.listeners = new Set();
