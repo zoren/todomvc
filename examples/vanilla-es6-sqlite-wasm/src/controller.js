@@ -40,9 +40,7 @@ export default class Controller {
 			else this.view.removeItem(id);
 		});
 
-		this.database.addEventListener('changedCompletedCount', (event) =>
-			this._updateViewCounts(event)
-		);
+		this.database.addEventListener('changedCompletedCount',	this._updateViewCounts);
 
 		this.database.addEventListener('updateAllTodos', this._reloadView);
 
@@ -60,7 +58,7 @@ export default class Controller {
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateViewCounts({ activeCount, completedCount }) {
+	_updateViewCounts = ({ activeCount, completedCount }) => {
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
