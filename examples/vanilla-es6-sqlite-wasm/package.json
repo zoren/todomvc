@@ -1,6 +1,7 @@
 {
   "private": true,
   "scripts": {
+    "dev": "vite",
     "build-local": "vite build",
     "build": "vite build --base=/todomvsqlite/",
     "preview": "vite preview"

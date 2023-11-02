@@ -5,5 +5,8 @@ export default () => {
     plugins: [viteCompression({
       filter: /\.(js|mjs|json|css|html|wasm)$/i
     })],
+    optimizeDeps: {
+      exclude: ['@sqlite.org/sqlite-wasm'],
+    },
   };
 };
