@@ -258,8 +258,14 @@ export default class View {
 	}
 
 	setSqlInputValue(value) {
-		this.$sqlInput.value = value;
-		this.$sqlInput
+		const input = this.$sqlInput;
+		input.value = value;
+		// put cursor at the end
+		// from: https://alvarotrigo.com/blog/move-cursor-to-end-input/
+		setTimeout(() => {
+			input.selectionStart = input.selectionEnd = value.length;
+			input.focus();
+		});
 	}
 
 	bindSQLConsoleHistory(handler) {
