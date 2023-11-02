@@ -9,10 +9,7 @@ const main = async () => {
 	const template = new Template();
 	const view = new View(template);
 
-	const sqlite3 = await sqlite3InitModule({
-		print: (...args) => console.log(...args),
-		printErr: (...args) => console.error(...args),
-	});
+	const sqlite3 = await sqlite3InitModule();
 
 	const todoDatabase = new TodoDatabase(sqlite3);
 	/**
