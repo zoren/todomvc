@@ -24,6 +24,7 @@ export default class View {
 
 		this.$sqlTrace = qs('.sql-trace');
 		this.$sqlConsole = qs('.sql-console');
+		this.$sqlInput = qs('.sql-input');
 
 		window.addEventListener('keypress', (event) => {
 			if (event.key == '`') {
@@ -256,7 +257,50 @@ export default class View {
 		});
 	}
 
+	bindEvalSQL(handler) {
+		$on(this.$sqlConsole, 'submit', () => {
+			handler(this.$sqlInput.value);
+		});
+	}
+
 	appendSQLTrace(sql) {
-		this.$sqlTrace.textContent += sql + '\n';
+		if (typeof sql === 'string') {
+			const sqlDiv = document.createElement('div');
+			sqlDiv.innerText = sql;
+			this.$sqlTrace.prepend(sqlDiv);
+		} else if (sql instanceof Error) {
+			const sqlDiv = document.createElement('div');
+			sqlDiv.className = 'sql-error';
+			sqlDiv.innerText = sql.message;
+			this.$sqlTrace.prepend(sqlDiv);
+		} else if (Array.isArray(sql)) {
+			if (sql.length === 0) {
+				this.$sqlTrace.prepend('empty result set\n');
+			} else {
+				const colums = Object.keys(sql[0]);
+				const table = document.createElement('table');
+				const thead = document.createElement('thead');
+				const tbody = document.createElement('tbody');
+				const tr = document.createElement('tr');
+				for (const column of colums) {
+					const th = document.createElement('th');
+					th.append(column);
+					tr.append(th);
+				}
+				thead.append(tr);
+				table.append(thead);
+				for (const row of sql) {
+					const tr = document.createElement('tr');
+					for (const column of colums) {
+						const td = document.createElement('td');
+						td.append(row[column]);
+						tr.append(td);
+					}
+					tbody.append(tr);
+				}
+				table.append(tbody);
+				this.$sqlTrace.prepend(table);
+			}
+		}
 	}
 }

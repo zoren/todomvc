@@ -8,28 +8,37 @@
 		<style>
 			.sql-console {
 				background:hsla(0, 0%, 0%, 0.42);
-				height: 150px;
+				height: 200px;
 				width:100%;
-				top:0px;
+				bottom:0px;
 				left:0px;
 				position:fixed;
 				z-index:999;
 				display: block;
 				color:#fff;
 				text-align:left;
-				resize: vertical;
 				overflow: auto;
+				font-size: small;
+				color: #33ff00;
 			}
 			.sql-trace {
-        color: #33ff00;
 				margin-top: auto;
-				display: block;
-				white-space: pre-wrap;
 				font-family: monospace;
-				height: 150px;
+				height: 180px;
 				overflow-y: auto;
 				display: flex;
 				flex-direction: column-reverse;
+			}
+			.sql-input {
+				color: #33ff00;
+				background: transparent;
+				border: none;
+				border-top: #33ff00 1px solid;
+				width: 100%;
+				font-family: monospace;
+			}
+			.sql-error {
+				color: crimson;
 			}
 		</style>
 	</head>
@@ -60,11 +69,10 @@
 				</footer>
 			</section>
 		</section>
-		<section class="sql-console">
-			<form>
-				<output class="sql-trace"></output>
-			</form>
-		</section>
+		<form class="sql-console" onsubmit="false">
+			<output class="sql-trace"></output>
+			<input class="sql-input" placeholder="SELECT * FROM todos" value="SELECT * FROM todos">
+		</form>
 		<footer class="info">
 			<p>Double-click to edit a todo</p>
 			<p>Written by <a href="http://twitter.com/lukeed05">Luke Edwards</a></p>

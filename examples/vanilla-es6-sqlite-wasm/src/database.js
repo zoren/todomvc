@@ -195,6 +195,8 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		});
 
 	// some demo helpers
+	selectObjects = (sql) => this.db.selectObjects(sql);
+
 	execSQL = (sql) => {
 		const rows = this.db.selectObjects(sql);
 		if (rows.length > 0) console.table(rows);

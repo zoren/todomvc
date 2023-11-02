@@ -46,7 +46,7 @@ export default class Controller {
 
 		this.database.addEventListener(
 			'sqlTraceExpandedStatement',
-			({ expanded }) => view.appendSQLTrace(expanded)
+			({ expanded }) => view.appendSQLTrace(new Date().toISOString() + ' ' + expanded)
 		);
 
 		view.bindAddItem(this.addItem.bind(this));
@@ -56,6 +56,13 @@ export default class Controller {
 		view.bindToggleItem(this.toggleCompleted.bind(this));
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
+		view.bindEvalSQL((params) => {
+			try {
+				view.appendSQLTrace(this.database.selectObjects(params));
+			} catch (e) {
+				view.appendSQLTrace(e);
+			}
+		});
 
 		this._currentRoute = '';
 	}
