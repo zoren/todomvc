@@ -26,7 +26,7 @@ export default class View {
 		this.$sqlConsole = qs('.sql-console');
 		this.$sqlInput = qs('.sql-input');
 
-		window.addEventListener('keypress', (event) => {
+		window.addEventListener('keydown', (event) => {
 			if (event.key == '`') {
 				event.preventDefault();
 				const style = this.$sqlConsole.style;
