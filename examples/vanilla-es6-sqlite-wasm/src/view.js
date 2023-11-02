@@ -286,11 +286,7 @@ export default class View {
 			sqlDiv.innerText = traceObject.message;
 			return sqlDiv;
 		} else if (Array.isArray(traceObject)) {
-			if (traceObject.length === 0) {
-				const d = document.createElement('div');
-				d.innerText = 'empty result set';
-				return d;
-			}
+			if (traceObject.length === 0) return null;
 			const colums = Object.keys(traceObject[0]);
 			const table = document.createElement('table');
 			const thead = document.createElement('thead');
