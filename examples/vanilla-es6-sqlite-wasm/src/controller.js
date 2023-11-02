@@ -6,11 +6,11 @@ export default class Controller {
 	 * @param  {!TodoDatabase} database A TodoDatabase instance
 	 * @param  {!View} view A View instance
 	 */
-	constructor(database, view) {
-		this.database = database;
+	constructor(todoDB, view) {
+		this.todoDB = todoDB;
 		this.view = view;
 
-		this.database.addEventListener('insertedItem', (event) => {
+		this.todoDB.addEventListener('insertedItem', (event) => {
 			this.view.clearNewTodo();
 			const route = this._currentRoute;
 			// add item if it should be visible in the current route
@@ -19,16 +19,16 @@ export default class Controller {
 			this._updateViewCounts();
 		});
 
-		this.database.addEventListener('deletedItem', ({ id }) => {
+		this.todoDB.addEventListener('deletedItem', ({ id }) => {
 			this.view.removeItem(id);
 			this._updateViewCounts();
 		});
 
-		this.database.addEventListener('updatedTitle', ({ id, title }) =>
+		this.todoDB.addEventListener('updatedTitle', ({ id, title }) =>
 			this.view.editItemDone(id, title)
 		);
 
-		this.database.addEventListener('updatedCompleted', ({ id, completed }) => {
+		this.todoDB.addEventListener('updatedCompleted', ({ id, completed }) => {
 			const route = this._currentRoute;
 
 			if (route === '') {
@@ -38,7 +38,7 @@ export default class Controller {
 				if (completed === (route === 'completed'))
 					this.view.addItem({
 						id,
-						title: this.database.getItemTitle(id),
+						title: this.todoDB.getItemTitle(id),
 						completed,
 					});
 				else this.view.removeItem(id);
@@ -46,9 +46,9 @@ export default class Controller {
 			this._updateViewCounts();
 		});
 
-		this.database.addEventListener('updateAllTodos', this._reloadView);
+		this.todoDB.addEventListener('updateAllTodos', this._reloadView);
 
-		this.database.addEventListener(
+		this.todoDB.addEventListener(
 			'sqlTraceExpandedStatement',
 			({ expanded }) => view.appendSQLTrace(expanded)
 		);
@@ -69,7 +69,7 @@ export default class Controller {
 		let sqlHistoryIndex = sqlHistory.length;
 		view.bindEvalSQL((sql) => {
 			try {
-				view.appendSQLTrace(this.database.selectObjects(sql));
+				view.appendSQLTrace(this.todoDB.selectObjects(sql));
 				// only add to history if it's different from the last one
 				if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
 				sqlHistoryIndex = sqlHistory.length;
@@ -93,7 +93,7 @@ export default class Controller {
 	 */
 	_updateViewCounts = () => {
 		const { activeCount, hasCompleted } =
-			this.database.getActiveCountAndHasCompleted();
+			this.todoDB.getActiveCountAndHasCompleted();
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
@@ -118,8 +118,8 @@ export default class Controller {
 		this._updateViewCounts();
 		this.view.showItems(
 			route === ''
-				? this.database.getAllItems()
-				: this.database.getItemsByCompletedStatus(route === 'completed')
+				? this.todoDB.getAllItems()
+				: this.todoDB.getItemsByCompletedStatus(route === 'completed')
 		);
 	};
 
@@ -128,7 +128,7 @@ export default class Controller {
 	 *
 	 * @param {!string} title Title of the new item
 	 */
-	addItem = (title) => this.database.insertItem(title);
+	addItem = (title) => this.todoDB.insertItem(title);
 
 	/**
 	 * Save an Item in edit.
@@ -138,7 +138,7 @@ export default class Controller {
 	 */
 	editItemSave(id, title) {
 		if (title.length > 0) {
-			this.database.setItemTitle(id, title);
+			this.todoDB.setItemTitle(id, title);
 		} else {
 			this.removeItem(id);
 		}
@@ -150,19 +150,19 @@ export default class Controller {
 	 * @param {!number} id ID of the Item in edit
 	 */
 	editItemCancel = (id) =>
-		this.view.editItemDone(id, this.database.getItemTitle(id));
+		this.view.editItemDone(id, this.todoDB.getItemTitle(id));
 
 	/**
 	 * Remove the data and elements related to an Item.
 	 *
 	 * @param {!number} id Item ID of item to remove
 	 */
-	removeItem = (id) => this.database.deleteItem(id);
+	removeItem = (id) => this.todoDB.deleteItem(id);
 
 	/**
 	 * Remove all completed items.
 	 */
-	removeCompletedItems = () => this.database.deleteCompletedItems();
+	removeCompletedItems = () => this.todoDB.deleteCompletedItems();
 
 	/**
 	 * Update an Item in storage based on the state of completed.
@@ -171,7 +171,7 @@ export default class Controller {
 	 * @param {!boolean} completed Desired completed state
 	 */
 	toggleCompleted = (id, completed) =>
-		this.database.setItemCompletedStatus(id, completed);
+		this.todoDB.setItemCompletedStatus(id, completed);
 
 	/**
 	 * Set all items to complete or active.
@@ -179,5 +179,5 @@ export default class Controller {
 	 * @param {boolean} completed Desired completed state
 	 */
 	toggleAll = (completed) =>
-		this.database.setAllItemsCompletedStatus(completed);
+		this.todoDB.setAllItemsCompletedStatus(completed);
 }
