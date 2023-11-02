@@ -16,6 +16,7 @@ const main = async () => {
 	 * @type {Controller}
 	 */
 	const controller = new Controller(todoDatabase, view);
+	todoDatabase.init()
 	const updateView = () => controller.setView(document.location.hash);
 	updateView();
 	$on(window, 'hashchange', updateView);

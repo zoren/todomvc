@@ -7,6 +7,7 @@ export default class TodoDatabase {
 
 		const _dispatchEvent = (type, data) =>
 			this.listeners.get(type)?.forEach((listener) => listener(data));
+		this._dispatchEvent = _dispatchEvent;
 
 		const { capi, wasm, oo1 } = sqlite3;
 
@@ -34,7 +35,10 @@ export default class TodoDatabase {
 			traceToEvents,
 			0 // passed in as ctxPtr to traceToEvents
 		);
+	}
 
+	init = () => {
+		const _dispatchEvent = this._dispatchEvent;
 		this.db.exec(`
 CREATE TABLE IF NOT EXISTS todos (
   id INTEGER PRIMARY KEY,
