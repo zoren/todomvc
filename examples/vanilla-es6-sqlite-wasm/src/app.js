@@ -3,7 +3,7 @@ import TodoDatabase from './database.js';
 import { $on } from './helpers.js';
 import Template from './template.js';
 import View from './view.js';
-import sqlite3InitModule from '../node_modules/@sqlite.org/sqlite-wasm/index.mjs';
+import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 
 const main = async () => {
 	const template = new Template();
