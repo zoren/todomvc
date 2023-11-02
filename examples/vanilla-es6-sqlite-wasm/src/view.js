@@ -263,44 +263,52 @@ export default class View {
 		});
 	}
 
-	appendSQLTrace(sql) {
-		if (typeof sql === 'string') {
+	_makeTraceElement(traceObject) {
+		if (typeof traceObject === 'string') {
 			const sqlDiv = document.createElement('div');
-			sqlDiv.innerText = sql;
-			this.$sqlTrace.prepend(sqlDiv);
-		} else if (sql instanceof Error) {
+			sqlDiv.innerText = traceObject;
+			return sqlDiv;
+		} else if (traceObject instanceof Error) {
 			const sqlDiv = document.createElement('div');
 			sqlDiv.className = 'sql-error';
-			sqlDiv.innerText = sql.message;
-			this.$sqlTrace.prepend(sqlDiv);
-		} else if (Array.isArray(sql)) {
-			if (sql.length === 0) {
-				this.$sqlTrace.prepend('empty result set\n');
-			} else {
-				const colums = Object.keys(sql[0]);
-				const table = document.createElement('table');
-				const thead = document.createElement('thead');
-				const tbody = document.createElement('tbody');
+			sqlDiv.innerText = traceObject.message;
+			return sqlDiv;
+		} else if (Array.isArray(traceObject)) {
+			if (traceObject.length === 0) {
+				const d = document.createElement('div');
+				d.innerText = 'empty result set';
+				return d;
+			}
+			const colums = Object.keys(traceObject[0]);
+			const table = document.createElement('table');
+			const thead = document.createElement('thead');
+			const tbody = document.createElement('tbody');
+			const tr = document.createElement('tr');
+			for (const column of colums) {
+				const th = document.createElement('th');
+				th.append(column);
+				tr.append(th);
+			}
+			thead.append(tr);
+			table.append(thead);
+			for (const row of traceObject) {
 				const tr = document.createElement('tr');
 				for (const column of colums) {
-					const th = document.createElement('th');
-					th.append(column);
-					tr.append(th);
+					const td = document.createElement('td');
+					td.append(row[column]);
+					tr.append(td);
 				}
-				thead.append(tr);
-				table.append(thead);
-				for (const row of sql) {
-					const tr = document.createElement('tr');
-					for (const column of colums) {
-						const td = document.createElement('td');
-						td.append(row[column]);
-						tr.append(td);
-					}
-					tbody.append(tr);
-				}
-				table.append(tbody);
-				this.$sqlTrace.prepend(table);
+				tbody.append(tr);
 			}
+			table.append(tbody);
+			return table;
 		}
+		return null;
+	}
+
+	appendSQLTrace(traceObject) {
+		const div = this._makeTraceElement(traceObject);
+		// we prepend because the trace is rendered in reverse order to make it scroll to the bottom automatically
+		if (div) this.$sqlTrace.prepend(div);
 	}
 }
