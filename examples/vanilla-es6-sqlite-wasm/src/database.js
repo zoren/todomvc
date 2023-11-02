@@ -158,7 +158,14 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			)
 			.map((item) => ({ ...item, completed: !!item.completed }));
 
-	addItem = ($title, completed) =>
+	insertItem = ($title, completed) =>
+		completed === undefined?
+		this.db.exec(
+			`INSERT INTO todos (title) VALUES ($title)`,
+			{
+				bind: { $title },
+			}
+		):
 		this.db.exec(
 			`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
 			{
@@ -223,7 +230,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			{ title: 'Write notes on fluid dynamics.', completed: false },
 		];
 		for (const { title, completed } of davincisTodos) {
-			this.addItem(title, completed);
+			this.insertItem(title, completed);
 		}
 	};
 }

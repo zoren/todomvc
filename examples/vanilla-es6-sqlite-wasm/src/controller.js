@@ -107,7 +107,7 @@ export default class Controller {
 	 *
 	 * @param {!string} title Title of the new item
 	 */
-	addItem = (title) => this.database.addItem(title);
+	addItem = (title) => this.database.insertItem(title);
 
 	/**
 	 * Save an Item in edit.
