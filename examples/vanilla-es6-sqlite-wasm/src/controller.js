@@ -16,11 +16,13 @@ export default class Controller {
 			// add item if it should be visible in the current route
 			if (route === '' || event.completed === (route === 'completed'))
 				this.view.addItem(event);
+			this._updateViewCounts();
 		});
 
-		this.database.addEventListener('deletedItem', ({ id }) =>
-			this.view.removeItem(id)
-		);
+		this.database.addEventListener('deletedItem', ({ id }) => {
+			this.view.removeItem(id);
+			this._updateViewCounts();
+		});
 
 		this.database.addEventListener('updatedTitle', ({ id, title }) =>
 			this.view.editItemDone(id, title)
@@ -29,18 +31,20 @@ export default class Controller {
 		this.database.addEventListener('updatedCompleted', ({ id, completed }) => {
 			const route = this._currentRoute;
 
-			if (route === '') return this.view.setItemComplete(id, completed);
-			// add/remove item if it should be visible in the current route
-			if (completed === (route === 'completed'))
-				this.view.addItem({
-					id,
-					title: this.database.getItemTitle(id),
-					completed,
-				});
-			else this.view.removeItem(id);
+			if (route === '') {
+				this.view.setItemComplete(id, completed);
+			} else {
+				// add/remove item if it should be visible in the current route
+				if (completed === (route === 'completed'))
+					this.view.addItem({
+						id,
+						title: this.database.getItemTitle(id),
+						completed,
+					});
+				else this.view.removeItem(id);
+			}
+			this._updateViewCounts();
 		});
-
-		this.database.addEventListener('changedCompletedCount',	this._updateViewCounts);
 
 		this.database.addEventListener('updateAllTodos', this._reloadView);
 

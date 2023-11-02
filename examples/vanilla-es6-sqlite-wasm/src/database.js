@@ -59,9 +59,6 @@ SELECT
   (SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)) as has_completed`
 		);
 
-		const dispatchChangedCompletedCount = () =>
-			_dispatchEvent('changedCompletedCount');
-
 		this.db.createFunction(
 			'inserted_item_fn',
 			(_ctxPtr, id, title, completed) => {
@@ -70,26 +67,23 @@ SELECT
 					title,
 					completed: !!completed,
 				});
-				dispatchChangedCompletedCount();
 			}
 		);
 
-		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) => {
-			_dispatchEvent('deletedItem', { id });
-			dispatchChangedCompletedCount();
-		});
+		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) =>
+			_dispatchEvent('deletedItem', { id })
+		);
 
 		this.db.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
 			_dispatchEvent('updatedTitle', { id, title })
 		);
 
-		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
+		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) =>
 			_dispatchEvent('updatedCompleted', {
 				id,
 				completed: !!completed,
-			});
-			dispatchChangedCompletedCount();
-		});
+			})
+		);
 
 		const createTriggers = [
 			`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
