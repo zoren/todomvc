@@ -57,9 +57,10 @@ export default class Controller {
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
 		const sqlHistory = [
-			`SELECT * FROM todos`,
-			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
 			`UPDATE todos SET completed = NOT completed`,
+			`SELECT * FROM todos`,
+			`DELETE FROM todos WHERE completed = 1`,
+			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
 		]
 		let sqlHistoryIndex = sqlHistory.length;
 		view.bindEvalSQL((sql) => {
