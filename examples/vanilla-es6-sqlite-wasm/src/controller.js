@@ -46,7 +46,7 @@ export default class Controller {
 
 		this.database.addEventListener(
 			'sqlTraceExpandedStatement',
-			({ expanded }) => view.appendSQLTrace(new Date().toISOString() + ' ' + expanded)
+			({ expanded }) => view.appendSQLTrace(expanded)
 		);
 
 		view.bindAddItem(this.addItem.bind(this));
@@ -56,13 +56,29 @@ export default class Controller {
 		view.bindToggleItem(this.toggleCompleted.bind(this));
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
-		view.bindEvalSQL((params) => {
+		const sqlHistory = [
+			`SELECT * FROM todos`,
+			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
+			`UPDATE todos SET completed = NOT completed`,
+		]
+		let sqlHistoryIndex = sqlHistory.length;
+		view.bindEvalSQL((sql) => {
 			try {
-				view.appendSQLTrace(this.database.selectObjects(params));
+				view.appendSQLTrace(this.database.selectObjects(sql));
+				// only add to history if it's different from the last one
+				if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
+				sqlHistoryIndex = sqlHistory.length;
+				view.setSqlInputValue('')
 			} catch (e) {
 				view.appendSQLTrace(e);
 			}
 		});
+		view.bindSQLConsoleHistory((upDownDiff) => {
+			if (upDownDiff === -1 && sqlHistoryIndex === 0) return
+			if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return
+			sqlHistoryIndex += upDownDiff;
+			view.setSqlInputValue(sqlHistoryIndex === sqlHistory.length ? '': sqlHistory[sqlHistoryIndex]);
+		})
 
 		this._currentRoute = '';
 	}

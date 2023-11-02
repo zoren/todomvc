@@ -257,6 +257,18 @@ export default class View {
 		});
 	}
 
+	setSqlInputValue(value) {
+		this.$sqlInput.value = value;
+		this.$sqlInput
+	}
+
+	bindSQLConsoleHistory(handler) {
+		this.$sqlConsole.addEventListener('keydown', ({key}) => {
+			if (key === 'ArrowUp') handler(-1);
+			if (key === 'ArrowDown') handler(1);
+		});
+	}
+
 	bindEvalSQL(handler) {
 		$on(this.$sqlConsole, 'submit', () => {
 			handler(this.$sqlInput.value);
