@@ -1,40 +1,39 @@
-export default class TodoDatabase {
+const addStatementTracing = (sqlite3, db, callback) => {
+	const { capi, wasm } = sqlite3;
+
+	capi.sqlite3_trace_v2(
+		db,
+		capi.SQLITE_TRACE_STMT,
+		wasm.installFunction('i(ippp)', (traceEventCode, _ctxPtr, p, x) => {
+			if (traceEventCode !== capi.SQLITE_TRACE_STMT) return;
+			const preparedStatement = p;
+			const sqlTextCstr = x;
+			const sqlText = wasm.cstrToJs(sqlTextCstr);
+			if (sqlText.startsWith('--')) {
+				callback('sqlTraceStatement', { sqlText });
+			} else {
+				// expand bound parameters into sql statement
+				const expanded = capi.sqlite3_expanded_sql(preparedStatement);
+				callback('sqlTraceExpandedStatement', { expanded });
+			}
+		}),
+		0 // passed in as ctxPtr to traceToEvents
+	);
+};
+
+export default class {
 	/**
 	 * @param  {!Database} sqlDatabase A Database instance
 	 */
 	constructor(sqlite3) {
+		this.db = new sqlite3.oo1.JsStorageDb('local');
+
 		this.listeners = new Map();
 
-		const _dispatchEvent = (type, data) =>
+		this._dispatchEvent = (type, data) =>
 			this.listeners.get(type)?.forEach((listener) => listener(data));
-		this._dispatchEvent = _dispatchEvent;
 
-		const { capi, wasm, oo1 } = sqlite3;
-
-		const traceToEvents = wasm.installFunction(
-			'i(ippp)',
-			(traceEventCode, _ctxPtr, p, x) => {
-				if (traceEventCode !== capi.SQLITE_TRACE_STMT) return;
-				const preparedStatement = p;
-				const sqlTextCstr = x;
-				const sqlText = wasm.cstrToJs(sqlTextCstr);
-				if (sqlText.startsWith('--')) {
-					_dispatchEvent('sqlTraceStatement', { sqlText });
-				} else {
-					const expanded = capi.sqlite3_expanded_sql(preparedStatement);
-					_dispatchEvent('sqlTraceExpandedStatement', { expanded });
-				}
-			}
-		);
-
-		this.db = new oo1.JsStorageDb('local');
-
-		capi.sqlite3_trace_v2(
-			this.db,
-			capi.SQLITE_TRACE_STMT,
-			traceToEvents,
-			0 // passed in as ctxPtr to traceToEvents
-		);
+		addStatementTracing(sqlite3, this.db, this._dispatchEvent);
 	}
 
 	init = () => {
@@ -45,7 +44,7 @@ export default class TodoDatabase {
   title TEXT NOT NULL,
   completed INTEGER NOT NULL DEFAULT 0,
   CHECK (title <> ''),
-  CHECK (completed IN (0, 1)))  -- SQLite uses integers for booleans`
+  CHECK (completed IN (0, 1)))` // SQLite uses 0 and 1 for booleans
 		);
 		// we will need to filter on completed so we create an index
 		this.db.exec(
@@ -59,6 +58,7 @@ SELECT
   (SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)) as has_completed`
 		);
 
+		// insert item trigger
 		this.db.createFunction(
 			'inserted_item_fn',
 			(_ctxPtr, id, title, completed) => {
@@ -70,14 +70,28 @@ SELECT
 			}
 		);
 
+		this.db.exec(`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
+		BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`);
+
+		// delete item trigger
 		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) =>
 			_dispatchEvent('deletedItem', { id })
 		);
 
+		this.db.exec(`CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
+		BEGIN SELECT deleted_item_fn(old.id); END`);
+
+		// update item title trigger
 		this.db.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
 			_dispatchEvent('updatedTitle', { id, title })
 		);
 
+		this.db
+			.exec(`CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
+		WHEN old.title <> new.title
+		BEGIN SELECT updated_title_fn(new.id, new.title); END`);
+
+		// update item completed status trigger
 		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) =>
 			_dispatchEvent('updatedCompleted', {
 				id,
@@ -85,19 +99,10 @@ SELECT
 			})
 		);
 
-		const createTriggers = [
-			`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
-  BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`,
-			`CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
-  BEGIN SELECT deleted_item_fn(old.id); END`,
-			`CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
-  WHEN old.title <> new.title
-  BEGIN SELECT updated_title_fn(new.id, new.title); END`,
-			`CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
-  WHEN old.completed <> new.completed
-  BEGIN SELECT updated_completed_fn(new.id, new.completed); END`,
-		];
-		for (const sql of createTriggers) this.db.exec(sql);
+		this.db
+			.exec(`CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
+WHEN old.completed <> new.completed
+BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 
 		// listen for changes from other sessions
 		addEventListener('storage', (event) => {
