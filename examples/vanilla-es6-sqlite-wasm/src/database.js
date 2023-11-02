@@ -48,6 +48,12 @@ CREATE TABLE IF NOT EXISTS todos (
 			`CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`
 		);
 
+		this.db.exec(
+`CREATE TEMP VIEW todo_counts AS 
+SELECT
+  (SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
+  (SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)) as has_completed`);
+
 		const dispatchChangedCompletedCount = () =>
 			_dispatchEvent('changedCompletedCount');
 
@@ -120,8 +126,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		});
 
 		// if there are no items, add some
-		const activeCount = this.getActiveItemCount();
-		const hasCompleted = this.hasCompletedItems();
+		const { activeCount, hasCompleted } =	this.getActiveCountAndHasCompleted();
 		if (activeCount === 0 && !hasCompleted) this.davinci();
 	}
 
@@ -174,11 +179,12 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	deleteItem = ($id) =>
 		this.db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
 
-	getActiveItemCount = () =>
-		this.db.selectValue(`SELECT COUNT() FROM todos WHERE completed = 0`);
-
-	hasCompletedItems = () =>
-		!!this.db.selectValue(`SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)`);
+	getActiveCountAndHasCompleted = () => {
+		const { active_count, has_completed } = this.db.selectObject(
+			`SELECT active_count, has_completed FROM todo_counts`
+		);
+		return { activeCount: active_count, hasCompleted: !!has_completed };
+	};
 
 	deleteCompletedItems = () =>
 		this.db.exec(`DELETE FROM todos WHERE completed = 1`);
