@@ -87,12 +87,12 @@ export default class Controller {
 
 	_reloadView = () => {
 		const route = this._currentRoute;
+		this._updateViewCounts();
 		this.view.showItems(
 			route === ''
 				? this.database.getAllItems()
 				: this.database.getItemsByCompletedStatus(route === 'completed')
 		);
-		this._updateViewCounts();
 	};
 
 	/**
