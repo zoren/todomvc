@@ -65,7 +65,7 @@ export default class Controller {
 			`SELECT * FROM todos`,
 			`DELETE FROM todos WHERE completed = 1`,
 			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
-		]
+		];
 		let sqlHistoryIndex = sqlHistory.length;
 		view.bindEvalSQL((sql) => {
 			try {
@@ -73,17 +73,21 @@ export default class Controller {
 				// only add to history if it's different from the last one
 				if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
 				sqlHistoryIndex = sqlHistory.length;
-				view.setSqlInputValue('')
+				view.setSqlInputValue('');
 			} catch (e) {
 				view.appendSQLTrace(e);
 			}
 		});
 		view.bindSQLConsoleHistory((upDownDiff) => {
-			if (upDownDiff === -1 && sqlHistoryIndex === 0) return
-			if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return
+			if (upDownDiff === -1 && sqlHistoryIndex === 0) return;
+			if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return;
 			sqlHistoryIndex += upDownDiff;
-			view.setSqlInputValue(sqlHistoryIndex === sqlHistory.length ? '': sqlHistory[sqlHistoryIndex]);
-		})
+			const newInput =
+				sqlHistoryIndex === sqlHistory.length
+					? ''
+					: sqlHistory[sqlHistoryIndex];
+			view.setSqlInputValue(newInput);
+		});
 
 		this._currentRoute = '';
 	}
@@ -179,6 +183,5 @@ export default class Controller {
 	 *
 	 * @param {boolean} completed Desired completed state
 	 */
-	toggleAll = (completed) =>
-		this.todoDB.setAllItemsCompletedStatus(completed);
+	toggleAll = (completed) => this.todoDB.setAllItemsCompletedStatus(completed);
 }
