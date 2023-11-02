@@ -27,7 +27,7 @@ export default class View {
 		this.$sqlInput = qs('.sql-input');
 
 		window.addEventListener('keydown', (event) => {
-			if (event.key == '`') {
+			if (event.key == '`' && !event.metaKey) {
 				event.preventDefault();
 				const style = this.$sqlConsole.style;
 				style.display = style.display == 'none' ? 'block' : 'none';

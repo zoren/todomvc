@@ -52,10 +52,10 @@ export default class {
 		);
 
 		this.db.exec(
-			`CREATE TEMP VIEW todo_counts AS 
+			`CREATE TEMPORARY VIEW todo_counts AS 
 SELECT
-  (SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
-  (SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)) as has_completed`
+	(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
+	(SELECT COUNT() FROM todos) as total_count`
 		);
 
 		// insert item trigger
@@ -116,8 +116,8 @@ BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 		});
 
 		// if there are no items, add some
-		const { activeCount, hasCompleted } = this.getActiveCountAndHasCompleted();
-		if (activeCount === 0 && !hasCompleted) this.davinci();
+		const { totalCount } = this.getActiveCountAndHasCompleted();
+		if (totalCount === 0) this.davinci();
 	};
 
 	addEventListener = (type, listener) => {
@@ -166,12 +166,9 @@ BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 	deleteItem = ($id) =>
 		this.db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
 
-	getActiveCountAndHasCompleted = () => {
-		const { active_count, has_completed } = this.db.selectObject(
-			`SELECT active_count, has_completed FROM todo_counts`
-		);
-		return { activeCount: active_count, hasCompleted: !!has_completed };
-	};
+	getActiveCountAndHasCompleted = () => this.db.selectObject(
+		`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
+	);
 
 	deleteCompletedItems = () =>
 		this.db.exec(`DELETE FROM todos WHERE completed = 1`);
