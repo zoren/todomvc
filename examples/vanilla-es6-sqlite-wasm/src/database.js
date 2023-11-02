@@ -117,9 +117,9 @@ SELECT
 		});
 
 		// if there are no items, add some
-		const { activeCount, hasCompleted } =	this.getActiveCountAndHasCompleted();
+		const { activeCount, hasCompleted } = this.getActiveCountAndHasCompleted();
 		if (activeCount === 0 && !hasCompleted) this.davinci();
-	}
+	};
 
 	addEventListener = (type, listener) => {
 		let set = this.listeners.get(type);
