@@ -284,8 +284,9 @@ export default class View {
 
 	_makeTraceElement(traceObject) {
 		if (typeof traceObject === 'string') {
-			const sqlDiv = document.createElement('div');
-			sqlDiv.innerText = traceObject;
+			const sqlDiv = document.createElement('pre');
+			sqlDiv.innerText = traceObject.trim();
+			sqlDiv.className = 'sql';
 			return sqlDiv;
 		} else if (traceObject instanceof Error) {
 			const sqlDiv = document.createElement('div');

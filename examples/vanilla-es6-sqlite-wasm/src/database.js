@@ -39,24 +39,25 @@ export default class TodoDatabase {
 
 	init = () => {
 		const _dispatchEvent = this._dispatchEvent;
-		this.db.exec(`
-CREATE TABLE IF NOT EXISTS todos (
+		this.db.exec(
+			`CREATE TABLE IF NOT EXISTS todos (
   id INTEGER PRIMARY KEY,
   title TEXT NOT NULL,
   completed INTEGER NOT NULL DEFAULT 0,
   CHECK (title <> ''),
-  CHECK (completed IN (0, 1)) -- SQLite uses integers for booleans
-  )`);
+  CHECK (completed IN (0, 1)))  -- SQLite uses integers for booleans`
+		);
 		// we will need to filter on completed so we create an index
 		this.db.exec(
 			`CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`
 		);
 
 		this.db.exec(
-`CREATE TEMP VIEW todo_counts AS 
+			`CREATE TEMP VIEW todo_counts AS 
 SELECT
   (SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
-  (SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)) as has_completed`);
+  (SELECT EXISTS(SELECT 1 FROM todos WHERE completed = 1)) as has_completed`
+		);
 
 		const dispatchChangedCompletedCount = () =>
 			_dispatchEvent('changedCompletedCount');
@@ -90,33 +91,19 @@ SELECT
 			dispatchChangedCompletedCount();
 		});
 
-		this.db.exec(`
-DROP TRIGGER IF EXISTS insert_trigger;
-CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
-  BEGIN
-    SELECT inserted_item_fn(new.id, new.title, new.completed);
-  END;
-
-DROP TRIGGER IF EXISTS delete_trigger;
-CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
-  BEGIN
-    SELECT deleted_item_fn(old.id);
-  END;
-
-DROP TRIGGER IF EXISTS update_title_trigger;
-CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
+		const createTriggers = [
+			`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
+  BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`,
+			`CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
+  BEGIN SELECT deleted_item_fn(old.id); END`,
+			`CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
   WHEN old.title <> new.title
-  BEGIN
-    SELECT updated_title_fn(new.id, new.title);
-  END;
-
-DROP TRIGGER IF EXISTS update_completed_trigger;
-CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
+  BEGIN SELECT updated_title_fn(new.id, new.title); END`,
+			`CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
   WHEN old.completed <> new.completed
-  BEGIN
-    SELECT updated_completed_fn(new.id, new.completed);
-  END;
-`);
+  BEGIN SELECT updated_completed_fn(new.id, new.completed); END`,
+		];
+		for (const sql of createTriggers) this.db.exec(sql);
 
 		// listen for changes from other sessions
 		addEventListener('storage', (event) => {
@@ -162,20 +149,10 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			)
 			.map((item) => ({ ...item, completed: !!item.completed }));
 
-	insertItem = ($title, completed) =>
-		completed === undefined?
-		this.db.exec(
-			`INSERT INTO todos (title) VALUES ($title)`,
-			{
-				bind: { $title },
-			}
-		):
-		this.db.exec(
-			`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
-			{
-				bind: { $title, $completed: !!completed },
-			}
-		);
+	insertItem = ($title) =>
+		this.db.exec(`INSERT INTO todos (title) VALUES ($title)`, {
+			bind: { $title },
+		});
 
 	setItemTitle = ($id, $title) =>
 		this.db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
@@ -227,14 +204,17 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	davinci = () => {
 		this.db.exec(`DELETE FROM todos`);
 		const davincisTodos = [
-			{ title: 'Design a new flying machine concept.', completed: true },
-			{ title: 'Finish sketch of the Last Supper.', completed: true },
-			{ title: 'Research the mechanics of bird flight.', completed: true },
-			{ title: 'Experiment with new painting techniques.', completed: false },
-			{ title: 'Write notes on fluid dynamics.', completed: false },
+			{ $title: 'Design a new flying machine concept.', $completed: true },
+			{ $title: 'Finish sketch of the Last Supper.', $completed: true },
+			{ $title: 'Research the mechanics of bird flight.', $completed: true },
+			{ $title: 'Experiment with new painting techniques.', $completed: false },
+			{ $title: 'Write notes on fluid dynamics.', $completed: false },
 		];
-		for (const { title, completed } of davincisTodos) {
-			this.insertItem(title, completed);
+		for (const bind of davincisTodos) {
+			this.db.exec(
+				`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
+				{ bind }
+			);
 		}
 	};
 }
