@@ -270,7 +270,8 @@ export default class View {
 	}
 
 	bindEvalSQL(handler) {
-		$on(this.$sqlConsole, 'submit', () => {
+		$on(this.$sqlConsole, 'submit', (event) => {
+			event.preventDefault();
 			handler(this.$sqlInput.value);
 		});
 	}
