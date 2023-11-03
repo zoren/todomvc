@@ -5,8 +5,9 @@ export default class Controller {
 	/**
 	 * @param  {!Database} todoDB A sqlite3 oo1 Database instance
 	 * @param  {!View} view A View instance
+	 * @param  {!Array<string>} sqlHistory A list of SQL statements
 	 */
-	constructor(todoDB, view) {
+	constructor(todoDB, view, sqlHistory) {
 		this.todoDB = todoDB;
 		this.view = view;
 
@@ -17,10 +18,14 @@ export default class Controller {
 		view.bindToggleItem(this.toggleCompleted.bind(this));
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
+		view.bindEvalSQL(this.evalSQL);
+		view.bindSQLConsoleHistory(this.navigateSQLHistory);
 
 		this._currentRoute = '';
+		this._sqlHistory = sqlHistory;
+		this._sqlHistoryIndex = sqlHistory.length;
+
 		this._addListeners();
-		this._initSQLConsole();
 	}
 
 	_addListeners() {
@@ -68,36 +73,32 @@ export default class Controller {
 		TodoDB.createTriggers(this.todoDB, dispatchEvent);
 	}
 
-	_initSQLConsole = () => {
-		const sqlHistory = [
-			`UPDATE todos SET completed = NOT completed`,
-			`SELECT * FROM todos`,
-			`DELETE FROM todos WHERE completed = 1`,
-			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
-		];
-		let sqlHistoryIndex = sqlHistory.length;
-		this.view.bindEvalSQL((sql) => {
-			try {
-				this.view.appendSQLTrace(this.todoDB.selectObjects(sql));
-				// only add to history if it's different from the last one
-				if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
-				sqlHistoryIndex = sqlHistory.length;
-				this.view.setSqlInputValue('');
-			} catch (e) {
-				this.view.appendSQLTrace(e);
-			}
-		});
-		this.view.bindSQLConsoleHistory((upDownDiff) => {
-			if (upDownDiff === -1 && sqlHistoryIndex === 0) return;
-			if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return;
-			sqlHistoryIndex += upDownDiff;
-			const newInput =
-				sqlHistoryIndex === sqlHistory.length
-					? ''
-					: sqlHistory[sqlHistoryIndex];
-			this.view.setSqlInputValue(newInput);
-		});
-	}
+	evalSQL = (sql) => {
+		try {
+			const sqlHistory = this._sqlHistory;
+			this.view.appendSQLTrace(this.todoDB.selectObjects(sql));
+			// only add to history if it's different from the last one
+			if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
+			this._sqlHistoryIndex = sqlHistory.length;
+			this.view.setSqlInputValue('');
+		} catch (e) {
+			this.view.appendSQLTrace(e);
+		}
+	};
+
+	navigateSQLHistory = (upDownDiff) => {
+		const sqlHistory = this._sqlHistory;
+		const sqlHistoryIndex = this._sqlHistoryIndex;
+		if (upDownDiff === -1 && sqlHistoryIndex === 0) return;
+		if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return;
+		const newSqlHistoryIndex = sqlHistoryIndex + upDownDiff;
+		const newInput =
+			newSqlHistoryIndex === sqlHistory.length
+				? ''
+				: sqlHistory[newSqlHistoryIndex];
+		this._sqlHistoryIndex = newSqlHistoryIndex;
+		this.view.setSqlInputValue(newInput);
+	};
 
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
