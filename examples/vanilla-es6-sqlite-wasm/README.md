@@ -1,6 +1,6 @@
 # Vanilla ES6 sqlite-wasm • [TodoMVC](http://todomvc.com)
 
-> A port of the [Vanilla JS ES6 Example](https://todomvc.com/examples/vanilla-es6/), but using SQLite WebAssembly as it's store.
+> A port of the [Vanilla JS ES6 Example](https://todomvc.com/examples/vanilla-es6/), but using SQLite WebAssembly as its store.
 
 ## Installation
 
@@ -31,3 +31,4 @@ Uses [Google Closure Compiler](https://developers.google.com/closure/compiler/) 
 
 Created by [Luke Edwards](http://www.lukeed.com)
 Refactored by [Aaron Muir Hamilton](https://github.com/xorgy)
+SQLited by [Søren Sjørup](https://zoren.dk/)
