@@ -38,36 +38,31 @@ export default class {
 
 	init = () => {
 		const _dispatchEvent = this._dispatchEvent;
-		this.db.exec(
-			`CREATE TABLE IF NOT EXISTS todos (
+		this.db.exec(`
+CREATE TABLE IF NOT EXISTS todos (
   id INTEGER PRIMARY KEY,
   title TEXT NOT NULL,
   completed INTEGER NOT NULL DEFAULT 0,
   CHECK (title <> ''),
-  CHECK (completed IN (0, 1)))` // SQLite uses 0 and 1 for booleans
-		);
+  CHECK (completed IN (0, 1)))`); // SQLite uses 0 and 1 for booleans
 		// we will need to filter on completed so we create an index
 		this.db.exec(
 			`CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`
 		);
 
-		this.db.exec(
-			`CREATE TEMPORARY VIEW todo_counts AS 
+		this.db.exec(`
+CREATE TEMPORARY VIEW todo_counts AS 
 SELECT
 	(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
-	(SELECT COUNT() FROM todos) as total_count`
-		);
+	(SELECT COUNT() FROM todos) as total_count`);
 
 		// insert item trigger
 		this.db.createFunction(
 			'inserted_item_fn',
-			(_ctxPtr, id, title, completed) => {
+			(_ctxPtr, id, title, completed) =>
 				_dispatchEvent('insertedItem', {
-					id,
-					title,
-					completed: !!completed,
-				});
-			}
+					id,	title, completed: !!completed,
+				})
 		);
 
 		this.db.exec(`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
@@ -116,7 +111,7 @@ BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 		});
 
 		// if there are no items, add some
-		const { totalCount } = this.getActiveCountAndHasCompleted();
+		const { totalCount } = this.getItemCounts();
 		if (totalCount === 0) this.davinci();
 	};
 
@@ -166,7 +161,7 @@ BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 	deleteItem = ($id) =>
 		this.db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
 
-	getActiveCountAndHasCompleted = () => this.db.selectObject(
+	getItemCounts = () => this.db.selectObject(
 		`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
 	);
 
