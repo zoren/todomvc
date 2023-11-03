@@ -34,10 +34,48 @@ const addCommitHook = (sqlite3, db, callback) => {
 	);
 };
 
+const addTriggers = (db, dispatchEvent) => {
+	// insert item trigger
+	db.createFunction('inserted_item_fn', (_ctxPtr, id, title, completed) =>
+		dispatchEvent('insertedItem', { id, title, completed: !!completed })
+	);
+
+	db.exec(`
+CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
+	BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`);
+
+	// delete item trigger
+	db.createFunction('deleted_item_fn', (_ctxPtr, id) =>
+		dispatchEvent('deletedItem', { id })
+	);
+
+	db.exec(`
+CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
+	BEGIN SELECT deleted_item_fn(old.id); END`);
+
+	// update item title trigger
+	db.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
+		dispatchEvent('updatedTitle', { id, title })
+	);
+
+	db.exec(`
+CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
+	WHEN old.title <> new.title
+	BEGIN SELECT updated_title_fn(new.id, new.title); END`);
+
+	// update item completed status trigger
+	db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) =>
+		dispatchEvent('updatedCompleted', { id, completed: !!completed })
+	);
+
+	db.exec(`
+CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
+  WHEN old.completed <> new.completed
+  BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
+};
+
+
 export default class {
-	/**
-	 * @param  {!Database} sqlDatabase A Database instance
-	 */
 	constructor(sqlite3) {
 		this.db = new sqlite3.oo1.JsStorageDb('local');
 
@@ -80,49 +118,7 @@ SELECT
 	(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
 	(SELECT COUNT() FROM todos) as total_count`);
 
-		const _dispatchEvent = this._dispatchEvent;
-
-		// insert item trigger
-		this.db.createFunction(
-			'inserted_item_fn',
-			(_ctxPtr, id, title, completed) =>
-				_dispatchEvent('insertedItem', {
-					id,
-					title,
-					completed: !!completed,
-				})
-		);
-
-		this.db.exec(`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
-		BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`);
-
-		// delete item trigger
-		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) =>
-			_dispatchEvent('deletedItem', { id })
-		);
-
-		this.db.exec(`CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
-		BEGIN SELECT deleted_item_fn(old.id); END`);
-
-		// update item title trigger
-		this.db.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
-			_dispatchEvent('updatedTitle', { id, title })
-		);
-
-		this.db
-			.exec(`CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
-		WHEN old.title <> new.title
-		BEGIN SELECT updated_title_fn(new.id, new.title); END`);
-
-		// update item completed status trigger
-		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) =>
-			_dispatchEvent('updatedCompleted', { id, completed: !!completed })
-		);
-
-		this.db.exec(`
-CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
-  WHEN old.completed <> new.completed
-  BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
+		addTriggers(this.db, this._dispatchEvent)
 	};
 
 	addEventListener = (type, listener) => {
