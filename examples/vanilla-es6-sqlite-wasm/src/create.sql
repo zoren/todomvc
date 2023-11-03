@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS todos (
 CREATE INDEX IF NOT EXISTS completed_index ON todos (completed);
 
 -- we will need to count items often so we create a view
-CREATE VIEW IF NOT EXISTS todo_counts AS 
+CREATE TEMP VIEW todo_counts AS 
 	SELECT
 		(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
 		(SELECT COUNT() FROM todos) as total_count;
