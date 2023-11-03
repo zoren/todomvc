@@ -24,8 +24,7 @@ npm run dev
 
 ## Implementation
 
-Uses [Google Closure Compiler](https://developers.google.com/closure/compiler/) to compile ES6 code to ES5, which is then readable by all browsers.
-
+Uses `vite` to build the project, and `sqlite-wasm` to store the data.
 
 ## Credit
 
