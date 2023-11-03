@@ -18,6 +18,7 @@ const main = async () => {
 	const sqlite3 = await sqlite3InitModule();
 	const todoDatabase = new sqlite3.oo1.JsStorageDb('local');
 
+	// add tracing before we run the create script so the user can see what it does
 	addStatementTracing(sqlite3, todoDatabase, (type, { expanded }) => {
 		if (type === 'sqlTraceExpandedStatement') view.appendSQLTrace(expanded);
 	});
@@ -27,6 +28,7 @@ const main = async () => {
 	 */
 	const controller = new Controller(todoDatabase, view);
 	todoDatabase.exec(databaseCreateScript);
+	// add a commit hook to update the item counts so we don't do it multiple times	for one transaction
 	addCommitHook(sqlite3, todoDatabase, () =>
 		controller.updateViewItemCounts(getItemCounts(todoDatabase))
 	);
