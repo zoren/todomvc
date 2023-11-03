@@ -118,10 +118,6 @@ BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 			)
 				_dispatchEvent('updateAllTodos');
 		});
-
-		// if there are no items, add some
-		const { totalCount } = this.getItemCounts();
-		if (totalCount === 0) this.davinci();
 	};
 
 	addEventListener = (type, listener) => {
@@ -153,9 +149,8 @@ BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 			.map((item) => ({ ...item, completed: !!item.completed }));
 
 	insertItem = ($title) =>
-		this.db.exec(`INSERT INTO todos (title) VALUES ($title)`, {
-			bind: { $title },
-		});
+		this.db.selectValue(`INSERT INTO todos (title) VALUES ($title) RETURNING id`, { $title },
+		);
 
 	setItemTitle = ($id, $title) =>
 		this.db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
@@ -200,21 +195,4 @@ BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 				])
 			)
 		);
-
-	davinci = () => {
-		this.db.exec(`DELETE FROM todos`);
-		const davincisTodos = [
-			{ $title: 'Design a new flying machine concept.', $completed: true },
-			{ $title: 'Finish sketch of the Last Supper.', $completed: true },
-			{ $title: 'Research the mechanics of bird flight.', $completed: true },
-			{ $title: 'Experiment with new painting techniques.', $completed: false },
-			{ $title: 'Write notes on fluid dynamics.', $completed: false },
-		];
-		for (const bind of davincisTodos) {
-			this.db.exec(
-				`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
-				{ bind }
-			);
-		}
-	};
 }
