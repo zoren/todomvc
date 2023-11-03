@@ -96,17 +96,15 @@ SELECT
 
 		// update item completed status trigger
 		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
-			_dispatchEvent('updatedCompleted', {
-				id,
-				completed: !!completed,
-			});
+			_dispatchEvent('updatedCompleted', { id, completed: !!completed, });
 			_dispatchUpdatedItemCounts();
 		});
 
 		this.db
-			.exec(`CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
-WHEN old.completed <> new.completed
-BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
+			.exec(`
+CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
+  WHEN old.completed <> new.completed
+  BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 
 		// listen for changes from other sessions
 		addEventListener('storage', (event) => {
