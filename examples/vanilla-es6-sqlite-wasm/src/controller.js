@@ -50,7 +50,7 @@ export default class Controller {
 			({ expanded }) => view.appendSQLTrace(expanded)
 		);
 
-		this.todoDB.addEventListener('updatedItemCounts', this._updateItemCounts)
+		this.todoDB.addEventListener('updatedItemCounts', this._updateViewItemCounts)
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -94,7 +94,7 @@ export default class Controller {
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateItemCounts = ({ activeCount, totalCount }) => {
+	_updateViewItemCounts = ({ activeCount, totalCount }) => {
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
@@ -117,7 +117,7 @@ export default class Controller {
 
 	_reloadView = () => {
 		const route = this._currentRoute;
-		this._updateItemCounts(this.todoDB.getItemCounts());
+		this._updateViewItemCounts(this.todoDB.getItemCounts());
 		this.view.showItems(
 			route === ''
 				? this.todoDB.getAllItems()
