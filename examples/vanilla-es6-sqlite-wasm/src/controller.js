@@ -50,29 +50,19 @@ export default class Controller {
 	}
 
 	addListeners() {
-		const listeners = new Map();
-
-		const addEventListener = (type, listener) => {
-			let set = listeners.get(type);
-			if (!set) listeners.set(type, (set = new Set()));
-			set.add(listener);
-		};
-
-		addEventListener('insertedItem', (event) => {
+		const insertedItem = (event) => {
 			this.view.clearNewTodo();
 			const route = this._currentRoute;
 			// add item if it should be visible in the current route
 			if (route === '' || event.completed === (route === 'completed'))
 				this.view.addItem(event);
-		});
+		};
 
-		addEventListener('deletedItem', ({ id }) => this.view.removeItem(id));
+		const deletedItem = ({ id }) => this.view.removeItem(id);
 
-		addEventListener('updatedTitle', ({ id, title }) =>
-			this.view.editItemDone(id, title)
-		);
+		const updatedTitle = ({ id, title }) => this.view.editItemDone(id, title);
 
-		addEventListener('updatedCompleted', ({ id, completed }) => {
+		const updatedCompleted = ({ id, completed }) => {
 			const route = this._currentRoute;
 			if (route === '') {
 				this.view.setItemComplete(id, completed);
@@ -86,11 +76,22 @@ export default class Controller {
 					});
 				else this.view.removeItem(id);
 			}
-		});
+		};
 
-		const dispatchEvent = (type, data) =>
-			listeners.get(type)?.forEach((listener) => listener(data));
-		TodoDB.createTriggers(this.todoDB, dispatchEvent)
+		const dispatchEvent = (type, data) => {
+			switch (type) {
+				case 'insertedItem':
+					return insertedItem(data);
+				case 'deletedItem':
+					return deletedItem(data);
+				case 'updatedTitle':
+					return updatedTitle(data);
+				case 'updatedCompleted':
+					return updatedCompleted(data);
+			}
+		};
+
+		TodoDB.createTriggers(this.todoDB, dispatchEvent);
 	}
 
 	/**
