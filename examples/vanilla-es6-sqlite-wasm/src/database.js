@@ -21,6 +21,19 @@ const addStatementTracing = (sqlite3, db, callback) => {
 	);
 };
 
+const addCommitHook = (sqlite3, db, callback) => {
+	const { capi, wasm } = sqlite3;
+
+	capi.sqlite3_commit_hook(
+		db,
+		wasm.installFunction('i(p)', (_ctxPtr) => {
+			callback();
+			return 0;
+		}),
+		0
+	);
+};
+
 export default class {
 	/**
 	 * @param  {!Database} sqlDatabase A Database instance
@@ -34,6 +47,7 @@ export default class {
 			this.listeners.get(type)?.forEach((listener) => listener(data));
 
 		addStatementTracing(sqlite3, this.db, this._dispatchEvent);
+		addCommitHook(sqlite3, this.db, () => this._dispatchEvent('commit'));
 	}
 
 	init = () => {
@@ -56,30 +70,24 @@ SELECT
 	(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
 	(SELECT COUNT() FROM todos) as total_count`);
 
-		const _dispatchUpdatedItemCounts = () =>
-			_dispatchEvent('updatedItemCounts', this.getItemCounts());
-
 		// insert item trigger
 		this.db.createFunction(
 			'inserted_item_fn',
-			(_ctxPtr, id, title, completed) => {
+			(_ctxPtr, id, title, completed) =>
 				_dispatchEvent('insertedItem', {
 					id,
 					title,
 					completed: !!completed,
-				});
-				_dispatchUpdatedItemCounts();
-			}
+				})
 		);
 
 		this.db.exec(`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
 		BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`);
 
 		// delete item trigger
-		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) => {
-			_dispatchEvent('deletedItem', { id });
-			_dispatchUpdatedItemCounts();
-		});
+		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) =>
+			_dispatchEvent('deletedItem', { id })
+		);
 
 		this.db.exec(`CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
 		BEGIN SELECT deleted_item_fn(old.id); END`);
@@ -95,13 +103,11 @@ SELECT
 		BEGIN SELECT updated_title_fn(new.id, new.title); END`);
 
 		// update item completed status trigger
-		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
-			_dispatchEvent('updatedCompleted', { id, completed: !!completed, });
-			_dispatchUpdatedItemCounts();
-		});
+		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) =>
+			_dispatchEvent('updatedCompleted', { id, completed: !!completed })
+		);
 
-		this.db
-			.exec(`
+		this.db.exec(`
 CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
   WHEN old.completed <> new.completed
   BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
@@ -116,6 +122,11 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			)
 				_dispatchEvent('updateAllTodos');
 		});
+
+		// on every commit dispatch updatedItemCounts event, even if the counts did not change
+		this.addEventListener('commit', () =>
+			_dispatchEvent('updatedItemCounts', this.getItemCounts())
+		);
 	};
 
 	addEventListener = (type, listener) => {
