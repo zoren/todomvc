@@ -76,7 +76,6 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
   BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 };
 
-
 export default class {
 	constructor(sqlite3) {
 		this.db = new sqlite3.oo1.JsStorageDb('local');
@@ -162,23 +161,4 @@ export default class {
 		this.db.exec(`UPDATE todos SET completed = $completed`, {
 			bind: { $completed },
 		});
-
-	// some demo helpers
-	selectObjects = (sql) => this.db.selectObjects(sql);
-
-	execSQL = (sql) => {
-		const rows = this.db.selectObjects(sql);
-		if (rows.length > 0) console.table(rows);
-		else console.log('empty result set');
-	};
-
-	dumpTodos = () =>
-		console.table(
-			Object.fromEntries(
-				this.getAllItems().map(({ id, title, completed }) => [
-					id,
-					{ title, completed },
-				])
-			)
-		);
 }
