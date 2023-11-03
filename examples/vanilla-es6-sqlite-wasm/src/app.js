@@ -17,6 +17,10 @@ const main = async () => {
 	 */
 	const controller = new Controller(todoDatabase, view);
 	todoDatabase.init()
+	// on every commit dispatch updatedItemCounts event, even if the counts did not change
+	todoDatabase.addEventListener('commit', () =>
+		controller._updateViewItemCounts(todoDatabase.getItemCounts())
+	);
 	// if there are no items, add some
 	const { totalCount } = todoDatabase.getItemCounts();
 	if (totalCount === 0) {

@@ -49,11 +49,6 @@ export default class Controller {
 			view.appendSQLTrace(expanded)
 		);
 
-		// on every commit dispatch updatedItemCounts event, even if the counts did not change
-		this.todoDB.addEventListener('commit', () =>
-			this._updateViewItemCounts(this.todoDB.getItemCounts())
-		);
-
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
 		view.bindEditItemCancel(this.editItemCancel.bind(this));
