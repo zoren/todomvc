@@ -45,12 +45,14 @@ export default class Controller {
 
 		this.todoDB.addEventListener('updateAllTodos', this._reloadView);
 
-		this.todoDB.addEventListener(
-			'sqlTraceExpandedStatement',
-			({ expanded }) => view.appendSQLTrace(expanded)
+		this.todoDB.addEventListener('sqlTraceExpandedStatement', ({ expanded }) =>
+			view.appendSQLTrace(expanded)
 		);
 
-		this.todoDB.addEventListener('updatedItemCounts', this._updateViewItemCounts)
+		this.todoDB.addEventListener(
+			'updatedItemCounts',
+			this._updateViewItemCounts
+		);
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
