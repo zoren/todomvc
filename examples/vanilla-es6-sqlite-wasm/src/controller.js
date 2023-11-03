@@ -189,5 +189,6 @@ export default class Controller {
 	 *
 	 * @param {boolean} completed Desired completed state
 	 */
-	toggleAll = (completed) => TodoDB.setAllItemsCompletedStatus(this.todoDB, completed);
+	toggleAll = (completed) =>
+		TodoDB.setAllItemsCompletedStatus(this.todoDB, completed);
 }
