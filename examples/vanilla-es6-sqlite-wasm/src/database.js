@@ -48,10 +48,20 @@ export default class {
 
 		addStatementTracing(sqlite3, this.db, this._dispatchEvent);
 		addCommitHook(sqlite3, this.db, () => this._dispatchEvent('commit'));
+
+		// listen for changes from other sessions
+		addEventListener('storage', (event) => {
+			// when other session clears the journal, it means it has committed potentially changing all data
+			if (
+				event.storageArea === localStorage &&
+				event.key === 'kvvfs-local-jrnl' &&
+				event.newValue === null
+			)
+				this._dispatchEvent('updateAllData');
+		});
 	}
 
 	init = () => {
-		const _dispatchEvent = this._dispatchEvent;
 		this.db.exec(`
 CREATE TABLE IF NOT EXISTS todos (
   id INTEGER PRIMARY KEY,
@@ -69,6 +79,8 @@ CREATE TEMPORARY VIEW todo_counts AS
 SELECT
 	(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
 	(SELECT COUNT() FROM todos) as total_count`);
+
+		const _dispatchEvent = this._dispatchEvent;
 
 		// insert item trigger
 		this.db.createFunction(
@@ -111,22 +123,6 @@ SELECT
 CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
   WHEN old.completed <> new.completed
   BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
-
-		// listen for changes from other sessions
-		addEventListener('storage', (event) => {
-			// when other session clears the journal, it means it has committed potentially changing all data
-			if (
-				event.storageArea === localStorage &&
-				event.key === 'kvvfs-local-jrnl' &&
-				event.newValue === null
-			)
-				_dispatchEvent('updateAllTodos');
-		});
-
-		// on every commit dispatch updatedItemCounts event, even if the counts did not change
-		this.addEventListener('commit', () =>
-			_dispatchEvent('updatedItemCounts', this.getItemCounts())
-		);
 	};
 
 	addEventListener = (type, listener) => {

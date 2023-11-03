@@ -43,15 +43,15 @@ export default class Controller {
 			}
 		});
 
-		this.todoDB.addEventListener('updateAllTodos', this._reloadView);
+		this.todoDB.addEventListener('updateAllData', this._reloadView);
 
 		this.todoDB.addEventListener('sqlTraceExpandedStatement', ({ expanded }) =>
 			view.appendSQLTrace(expanded)
 		);
 
-		this.todoDB.addEventListener(
-			'updatedItemCounts',
-			this._updateViewItemCounts
+		// on every commit dispatch updatedItemCounts event, even if the counts did not change
+		this.todoDB.addEventListener('commit', () =>
+			this._updateViewItemCounts(this.todoDB.getItemCounts())
 		);
 
 		view.bindAddItem(this.addItem.bind(this));
