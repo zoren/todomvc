@@ -1,3 +1,5 @@
+import databaseCreateScript from './create.sql?raw';
+
 const addStatementTracing = (sqlite3, db, callback) => {
 	const { capi, wasm } = sqlite3;
 
@@ -34,7 +36,7 @@ const addCommitHook = (sqlite3, db, callback) => {
 	);
 };
 
-const addTriggers = (db, dispatchEvent) => {
+const createTodoTriggers = (db, dispatchEvent) => {
 	// insert item trigger
 	db.createFunction('inserted_item_fn', (_ctxPtr, id, title, completed) =>
 		dispatchEvent('insertedItem', { id, title, completed: !!completed })
@@ -100,25 +102,8 @@ export default class {
 	}
 
 	init = () => {
-		this.db.exec(`
-CREATE TABLE IF NOT EXISTS todos (
-  id INTEGER PRIMARY KEY,
-  title TEXT NOT NULL,
-  completed INTEGER NOT NULL DEFAULT 0,
-  CHECK (title <> ''),
-  CHECK (completed IN (0, 1)))`); // SQLite uses 0 and 1 for booleans
-		// we will need to filter on completed so we create an index
-		this.db.exec(
-			`CREATE INDEX IF NOT EXISTS completed_index ON todos (completed)`
-		);
-
-		this.db.exec(`
-CREATE TEMPORARY VIEW todo_counts AS 
-SELECT
-	(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
-	(SELECT COUNT() FROM todos) as total_count`);
-
-		addTriggers(this.db, this._dispatchEvent)
+		this.db.exec(databaseCreateScript);
+		createTodoTriggers(this.db, this._dispatchEvent)
 	};
 
 	addEventListener = (type, listener) => {
