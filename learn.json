@@ -953,6 +953,15 @@
 			"url": "examples/vanilla-es6"
 		}]
 	},
+	"sqlite-wasm": {
+		"name": "SQLite WebAssembly",
+		"description": "SQLite compiled to WebAssembly",
+		"homepage": "https://sqlite.org/wasm/doc/trunk/",
+		"examples": [{
+			"name": "Vanilla SQLite WebAssembly Example",
+			"url": "examples/vanilla-es6-sqlite-wasm"
+		}]
+	},
 	"js_of_ocaml": {
 		"name": "js_of_ocaml",
 		"description": "Js_of_ocaml is a compiler of OCaml bytecode to Javascript. It makes it possible to run Ocaml programs in a Web browser.",
