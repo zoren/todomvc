@@ -1,53 +1,14 @@
-import TodoDatabase from './database.js';
+import * as TodoDB from './database.js';
 import View from './view.js';
 
 export default class Controller {
 	/**
-	 * @param  {!TodoDatabase} database A TodoDatabase instance
+	 * @param  {!Database} todoDB A sqlite3 oo1 Database instance
 	 * @param  {!View} view A View instance
 	 */
 	constructor(todoDB, view) {
 		this.todoDB = todoDB;
 		this.view = view;
-
-		this.todoDB.addEventListener('insertedItem', (event) => {
-			this.view.clearNewTodo();
-			const route = this._currentRoute;
-			// add item if it should be visible in the current route
-			if (route === '' || event.completed === (route === 'completed'))
-				this.view.addItem(event);
-		});
-
-		this.todoDB.addEventListener('deletedItem', ({ id }) =>
-			this.view.removeItem(id)
-		);
-
-		this.todoDB.addEventListener('updatedTitle', ({ id, title }) =>
-			this.view.editItemDone(id, title)
-		);
-
-		this.todoDB.addEventListener('updatedCompleted', ({ id, completed }) => {
-			const route = this._currentRoute;
-
-			if (route === '') {
-				this.view.setItemComplete(id, completed);
-			} else {
-				// add/remove item if it should be visible in the current route
-				if (completed === (route === 'completed'))
-					this.view.addItem({
-						id,
-						title: this.todoDB.getItemTitle(id),
-						completed,
-					});
-				else this.view.removeItem(id);
-			}
-		});
-
-		this.todoDB.addEventListener('updateAllData', this._reloadView);
-
-		this.todoDB.addEventListener('sqlTraceExpandedStatement', ({ expanded }) =>
-			view.appendSQLTrace(expanded)
-		);
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -65,7 +26,7 @@ export default class Controller {
 		let sqlHistoryIndex = sqlHistory.length;
 		view.bindEvalSQL((sql) => {
 			try {
-				view.appendSQLTrace(this.todoDB.selectObjects(sql));
+				view.appendSQLTrace(todoDB.selectObjects(sql));
 				// only add to history if it's different from the last one
 				if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
 				sqlHistoryIndex = sqlHistory.length;
@@ -88,10 +49,54 @@ export default class Controller {
 		this._currentRoute = '';
 	}
 
+	addListeners() {
+		const listeners = new Map();
+
+		const addEventListener = (type, listener) => {
+			let set = listeners.get(type);
+			if (!set) listeners.set(type, (set = new Set()));
+			set.add(listener);
+		};
+
+		addEventListener('insertedItem', (event) => {
+			this.view.clearNewTodo();
+			const route = this._currentRoute;
+			// add item if it should be visible in the current route
+			if (route === '' || event.completed === (route === 'completed'))
+				this.view.addItem(event);
+		});
+
+		addEventListener('deletedItem', ({ id }) => this.view.removeItem(id));
+
+		addEventListener('updatedTitle', ({ id, title }) =>
+			this.view.editItemDone(id, title)
+		);
+
+		addEventListener('updatedCompleted', ({ id, completed }) => {
+			const route = this._currentRoute;
+			if (route === '') {
+				this.view.setItemComplete(id, completed);
+			} else {
+				// add/remove item if it should be visible in the current route
+				if (completed === (route === 'completed'))
+					this.view.addItem({
+						id,
+						title: getItemTitle(this.todoDB, id),
+						completed,
+					});
+				else this.view.removeItem(id);
+			}
+		});
+
+		const dispatchEvent = (type, data) =>
+			listeners.get(type)?.forEach((listener) => listener(data));
+		TodoDB.createTriggers(this.todoDB, dispatchEvent)
+	}
+
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateViewItemCounts = ({ activeCount, totalCount }) => {
+	updateViewItemCounts = ({ activeCount, totalCount }) => {
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
@@ -109,16 +114,16 @@ export default class Controller {
 		const route = rawLocationHash.replace(/^#\//, '');
 		this.view.updateFilterButtons(route);
 		this._currentRoute = route;
-		this._reloadView();
+		this.reloadView();
 	}
 
-	_reloadView = () => {
+	reloadView = () => {
 		const route = this._currentRoute;
-		this._updateViewItemCounts(this.todoDB.getItemCounts());
+		this.updateViewItemCounts(TodoDB.getItemCounts(this.todoDB));
 		this.view.showItems(
 			route === ''
-				? this.todoDB.getAllItems()
-				: this.todoDB.getItemsByCompletedStatus(route === 'completed')
+				? TodoDB.getAllItems(this.todoDB)
+				: TodoDB.getItemsByCompletedStatus(this.todoDB, route === 'completed')
 		);
 	};
 
@@ -127,7 +132,7 @@ export default class Controller {
 	 *
 	 * @param {!string} title Title of the new item
 	 */
-	addItem = (title) => this.todoDB.insertItem(title);
+	addItem = (title) => TodoDB.insertItem(this.todoDB, title);
 
 	/**
 	 * Save an Item in edit.
@@ -137,7 +142,7 @@ export default class Controller {
 	 */
 	editItemSave(id, title) {
 		if (title.length > 0) {
-			this.todoDB.setItemTitle(id, title);
+			TodoDB.setItemTitle(this.todoDB, id, title);
 		} else {
 			this.removeItem(id);
 		}
@@ -149,19 +154,19 @@ export default class Controller {
 	 * @param {!number} id ID of the Item in edit
 	 */
 	editItemCancel = (id) =>
-		this.view.editItemDone(id, this.todoDB.getItemTitle(id));
+		this.view.editItemDone(id, TodoDB.getItemTitle(this.todoDB, id));
 
 	/**
 	 * Remove the data and elements related to an Item.
 	 *
 	 * @param {!number} id Item ID of item to remove
 	 */
-	removeItem = (id) => this.todoDB.deleteItem(id);
+	removeItem = (id) => TodoDB.deleteItem(this.todoDB, id);
 
 	/**
 	 * Remove all completed items.
 	 */
-	removeCompletedItems = () => this.todoDB.deleteCompletedItems();
+	removeCompletedItems = () => TodoDB.deleteCompletedItems(this.todoDB);
 
 	/**
 	 * Update an Item in storage based on the state of completed.
@@ -170,12 +175,12 @@ export default class Controller {
 	 * @param {!boolean} completed Desired completed state
 	 */
 	toggleCompleted = (id, completed) =>
-		this.todoDB.setItemCompletedStatus(id, completed);
+		TodoDB.setItemCompletedStatus(this.todoDB, id, completed);
 
 	/**
 	 * Set all items to complete or active.
 	 *
 	 * @param {boolean} completed Desired completed state
 	 */
-	toggleAll = (completed) => this.todoDB.setAllItemsCompletedStatus(completed);
+	toggleAll = (completed) => TodoDB.setAllItemsCompletedStatus(this.todoDB, completed);
 }

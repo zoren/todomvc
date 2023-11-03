@@ -1,42 +1,4 @@
-import databaseCreateScript from './create.sql?raw';
-
-const addStatementTracing = (sqlite3, db, callback) => {
-	const { capi, wasm } = sqlite3;
-
-	capi.sqlite3_trace_v2(
-		db,
-		capi.SQLITE_TRACE_STMT,
-		wasm.installFunction('i(ippp)', (traceEventCode, _ctxPtr, p, x) => {
-			if (traceEventCode !== capi.SQLITE_TRACE_STMT) return;
-			const preparedStatement = p;
-			const sqlTextCstr = x;
-			const sqlText = wasm.cstrToJs(sqlTextCstr);
-			if (sqlText.startsWith('--')) {
-				callback('sqlTraceStatement', { sqlText });
-			} else {
-				// expand bound parameters into sql statement
-				const expanded = capi.sqlite3_expanded_sql(preparedStatement);
-				callback('sqlTraceExpandedStatement', { expanded });
-			}
-		}),
-		0 // passed in as ctxPtr to traceToEvents
-	);
-};
-
-const addCommitHook = (sqlite3, db, callback) => {
-	const { capi, wasm } = sqlite3;
-
-	capi.sqlite3_commit_hook(
-		db,
-		wasm.installFunction('i(p)', (_ctxPtr) => {
-			callback();
-			return 0;
-		}),
-		0
-	);
-};
-
-const createTodoTriggers = (db, dispatchEvent) => {
+export const createTriggers = (db, dispatchEvent) => {
 	// insert item trigger
 	db.createFunction('inserted_item_fn', (_ctxPtr, id, title, completed) =>
 		dispatchEvent('insertedItem', { id, title, completed: !!completed })
@@ -76,89 +38,49 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
   BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 };
 
-export default class {
-	constructor(sqlite3) {
-		this.db = new sqlite3.oo1.JsStorageDb('local');
-
-		this.listeners = new Map();
-
-		this._dispatchEvent = (type, data) =>
-			this.listeners.get(type)?.forEach((listener) => listener(data));
-
-		addStatementTracing(sqlite3, this.db, this._dispatchEvent);
-		addCommitHook(sqlite3, this.db, () => this._dispatchEvent('commit'));
-
-		// listen for changes from other sessions
-		addEventListener('storage', (event) => {
-			// when other session clears the journal, it means it has committed potentially changing all data
-			if (
-				event.storageArea === localStorage &&
-				event.key === 'kvvfs-local-jrnl' &&
-				event.newValue === null
-			)
-				this._dispatchEvent('updateAllData');
-		});
-	}
-
-	init = () => {
-		this.db.exec(databaseCreateScript);
-		createTodoTriggers(this.db, this._dispatchEvent)
-	};
-
-	addEventListener = (type, listener) => {
-		let set = this.listeners.get(type);
-		if (!set) this.listeners.set(type, (set = new Set()));
-		set.add(listener);
-	};
-
-	removeEventListener = (type, listener) => {
-		const set = this.listeners.get(type);
-		if (set) set.delete(listener);
-		if (set.size === 0) this.listeners.delete(type);
-	};
-
-	getItemTitle = ($id) =>
-		this.db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
-
-	getAllItems = () =>
-		this.db
-			.selectObjects(`SELECT id, title, completed FROM todos`)
-			.map((item) => ({ ...item, completed: !!item.completed }));
-
-	getItemsByCompletedStatus = ($completed) =>
-		this.db
-			.selectObjects(
-				`SELECT id, title, completed FROM todos WHERE completed = $completed`,
-				{ $completed }
-			)
-			.map((item) => ({ ...item, completed: !!item.completed }));
-
-	insertItem = ($title) =>
-		this.db.selectValue(`INSERT INTO todos (title) VALUES ($title) RETURNING id`, { $title },
-		);
-
-	setItemTitle = ($id, $title) =>
-		this.db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
-			bind: { $id, $title },
-		});
-
-	setItemCompletedStatus = ($id, $completed) =>
-		this.db.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
-			bind: { $id, $completed },
-		});
-
-	deleteItem = ($id) =>
-		this.db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
-
-	getItemCounts = () => this.db.selectObject(
+export const getItemCounts = (db) =>
+	db.selectObject(
 		`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
 	);
 
-	deleteCompletedItems = () =>
-		this.db.exec(`DELETE FROM todos WHERE completed = 1`);
+export const insertItem = (db, $title) =>
+	db.selectValue(`INSERT INTO todos (title) VALUES ($title) RETURNING id`, {
+		$title,
+	});
 
-	setAllItemsCompletedStatus = ($completed) =>
-		this.db.exec(`UPDATE todos SET completed = $completed`, {
-			bind: { $completed },
-		});
-}
+export const setItemTitle = (db, $id, $title) =>
+	db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
+		bind: { $id, $title },
+	});
+
+export const setItemCompletedStatus = (db, $id, $completed) =>
+	db.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
+		bind: { $id, $completed },
+	});
+
+export const getItemTitle = (db, $id) =>
+	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
+
+export const getAllItems = (db) =>
+	db
+		.selectObjects(`SELECT id, title, completed FROM todos`)
+		.map((item) => ({ ...item, completed: !!item.completed }));
+
+export const getItemsByCompletedStatus = (db, $completed) =>
+	db
+		.selectObjects(
+			`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+			{ $completed }
+		)
+		.map((item) => ({ ...item, completed: !!item.completed }));
+
+export const deleteItem = (db, $id) =>
+	db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
+
+export const deleteCompletedItems = (db) =>
+	db.exec(`DELETE FROM todos WHERE completed = 1`);
+
+export const setAllItemsCompletedStatus = (db, $completed) =>
+	db.exec(`UPDATE todos SET completed = $completed`, {
+		bind: { $completed },
+	});

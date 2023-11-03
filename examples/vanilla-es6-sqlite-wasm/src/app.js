@@ -1,5 +1,11 @@
 import Controller from './controller.js';
-import TodoDatabase from './database.js';
+import databaseCreateScript from './create.sql?raw';
+import { addStatementTracing, addCommitHook } from './sqliteUtils.js';
+import {
+	getItemCounts,
+	insertItem,
+	setItemCompletedStatus,
+} from './database.js';
 import { $on } from './helpers.js';
 import Template from './template.js';
 import View from './view.js';
@@ -10,19 +16,24 @@ const main = async () => {
 	const view = new View(template);
 
 	const sqlite3 = await sqlite3InitModule();
+	const todoDatabase = new sqlite3.oo1.JsStorageDb('local');
 
-	const todoDatabase = new TodoDatabase(sqlite3);
+	addStatementTracing(sqlite3, todoDatabase, (type, { expanded }) => {
+		if (type === 'sqlTraceExpandedStatement') view.appendSQLTrace(expanded);
+	});
+
 	/**
 	 * @type {Controller}
 	 */
 	const controller = new Controller(todoDatabase, view);
-	todoDatabase.init()
-	// on every commit dispatch updatedItemCounts event, even if the counts did not change
-	todoDatabase.addEventListener('commit', () =>
-		controller._updateViewItemCounts(todoDatabase.getItemCounts())
+	todoDatabase.exec(databaseCreateScript);
+	addCommitHook(sqlite3, todoDatabase, () =>
+		controller.updateViewItemCounts(getItemCounts(todoDatabase))
 	);
+	controller.addListeners();
+
 	// if there are no items, add some
-	const { totalCount } = todoDatabase.getItemCounts();
+	const { totalCount } = getItemCounts(todoDatabase);
 	if (totalCount === 0) {
 		const davincisTodos = [
 			{ title: 'Design a new flying machine concept.', completed: true },
@@ -32,14 +43,25 @@ const main = async () => {
 			{ title: 'Write notes on fluid dynamics.' },
 		];
 		for (const { title, completed } of davincisTodos) {
-			const id = todoDatabase.insertItem(title);
-			if (completed) todoDatabase.setItemCompletedStatus(id, true);
+			const id = insertItem(todoDatabase, title);
+			if (completed) setItemCompletedStatus(todoDatabase, id, true);
 		}
 	}
 
 	const updateView = () => controller.setView(document.location.hash);
 	updateView();
 	$on(window, 'hashchange', updateView);
+
+	// listen for changes from other sessions
+	window.addEventListener('storage', (event) => {
+		// when other session clears the journal, it means it has committed potentially changing all data
+		if (
+			event.storageArea === window.localStorage &&
+			event.key === 'kvvfs-local-jrnl' &&
+			event.newValue === null
+		)
+			controller.reloadView();
+	});
 
 	// to make demos easier
 	window.todoDB = todoDatabase;
