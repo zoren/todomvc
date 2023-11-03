@@ -25,10 +25,6 @@ export default class Controller {
 		this._sqlHistory = sqlHistory;
 		this._sqlHistoryIndex = sqlHistory.length;
 
-		this._addListeners();
-	}
-
-	_addListeners() {
 		const insertedItem = (event) => {
 			this.view.clearNewTodo();
 			const route = this._currentRoute;
