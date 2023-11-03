@@ -17,39 +17,13 @@ export default class Controller {
 		view.bindToggleItem(this.toggleCompleted.bind(this));
 		view.bindRemoveCompleted(this.removeCompletedItems.bind(this));
 		view.bindToggleAll(this.toggleAll.bind(this));
-		const sqlHistory = [
-			`UPDATE todos SET completed = NOT completed`,
-			`SELECT * FROM todos`,
-			`DELETE FROM todos WHERE completed = 1`,
-			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
-		];
-		let sqlHistoryIndex = sqlHistory.length;
-		view.bindEvalSQL((sql) => {
-			try {
-				view.appendSQLTrace(todoDB.selectObjects(sql));
-				// only add to history if it's different from the last one
-				if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
-				sqlHistoryIndex = sqlHistory.length;
-				view.setSqlInputValue('');
-			} catch (e) {
-				view.appendSQLTrace(e);
-			}
-		});
-		view.bindSQLConsoleHistory((upDownDiff) => {
-			if (upDownDiff === -1 && sqlHistoryIndex === 0) return;
-			if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return;
-			sqlHistoryIndex += upDownDiff;
-			const newInput =
-				sqlHistoryIndex === sqlHistory.length
-					? ''
-					: sqlHistory[sqlHistoryIndex];
-			view.setSqlInputValue(newInput);
-		});
 
 		this._currentRoute = '';
+		this._addListeners();
+		this._initSQLConsole();
 	}
 
-	addListeners() {
+	_addListeners() {
 		const insertedItem = (event) => {
 			this.view.clearNewTodo();
 			const route = this._currentRoute;
@@ -92,6 +66,37 @@ export default class Controller {
 		};
 
 		TodoDB.createTriggers(this.todoDB, dispatchEvent);
+	}
+
+	_initSQLConsole = () => {
+		const sqlHistory = [
+			`UPDATE todos SET completed = NOT completed`,
+			`SELECT * FROM todos`,
+			`DELETE FROM todos WHERE completed = 1`,
+			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
+		];
+		let sqlHistoryIndex = sqlHistory.length;
+		this.view.bindEvalSQL((sql) => {
+			try {
+				this.view.appendSQLTrace(this.todoDB.selectObjects(sql));
+				// only add to history if it's different from the last one
+				if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
+				sqlHistoryIndex = sqlHistory.length;
+				this.view.setSqlInputValue('');
+			} catch (e) {
+				this.view.appendSQLTrace(e);
+			}
+		});
+		this.view.bindSQLConsoleHistory((upDownDiff) => {
+			if (upDownDiff === -1 && sqlHistoryIndex === 0) return;
+			if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return;
+			sqlHistoryIndex += upDownDiff;
+			const newInput =
+				sqlHistoryIndex === sqlHistory.length
+					? ''
+					: sqlHistory[sqlHistoryIndex];
+			this.view.setSqlInputValue(newInput);
+		});
 	}
 
 	/**

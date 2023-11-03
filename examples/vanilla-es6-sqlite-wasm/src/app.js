@@ -22,17 +22,16 @@ const main = async () => {
 	addStatementTracing(sqlite3, todoDatabase, (type, { expanded }) => {
 		if (type === 'sqlTraceExpandedStatement') view.appendSQLTrace(expanded);
 	});
+	todoDatabase.exec(databaseCreateScript);
 
 	/**
 	 * @type {Controller}
 	 */
 	const controller = new Controller(todoDatabase, view);
-	todoDatabase.exec(databaseCreateScript);
 	// add a commit hook to update the item counts so we don't do it multiple times	for one transaction
 	addCommitHook(sqlite3, todoDatabase, () =>
 		controller.updateViewItemCounts(getItemCounts(todoDatabase))
 	);
-	controller.addListeners();
 
 	// if there are no items, add some
 	const { totalCount } = getItemCounts(todoDatabase);
