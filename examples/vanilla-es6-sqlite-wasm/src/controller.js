@@ -16,13 +16,11 @@ export default class Controller {
 			// add item if it should be visible in the current route
 			if (route === '' || event.completed === (route === 'completed'))
 				this.view.addItem(event);
-			this._updateItemCounts();
 		});
 
-		this.todoDB.addEventListener('deletedItem', ({ id }) => {
-			this.view.removeItem(id);
-			this._updateItemCounts();
-		});
+		this.todoDB.addEventListener('deletedItem', ({ id }) =>
+			this.view.removeItem(id)
+		);
 
 		this.todoDB.addEventListener('updatedTitle', ({ id, title }) =>
 			this.view.editItemDone(id, title)
@@ -43,7 +41,6 @@ export default class Controller {
 					});
 				else this.view.removeItem(id);
 			}
-			this._updateItemCounts();
 		});
 
 		this.todoDB.addEventListener('updateAllTodos', this._reloadView);
@@ -52,6 +49,8 @@ export default class Controller {
 			'sqlTraceExpandedStatement',
 			({ expanded }) => view.appendSQLTrace(expanded)
 		);
+
+		this.todoDB.addEventListener('updatedItemCounts', this._updateItemCounts)
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -95,8 +94,7 @@ export default class Controller {
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	_updateItemCounts = () => {
-		const { activeCount, totalCount } =	this.todoDB.getItemCounts();
+	_updateItemCounts = ({ activeCount, totalCount }) => {
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
@@ -119,7 +117,7 @@ export default class Controller {
 
 	_reloadView = () => {
 		const route = this._currentRoute;
-		this._updateItemCounts();
+		this._updateItemCounts(this.todoDB.getItemCounts());
 		this.view.showItems(
 			route === ''
 				? this.todoDB.getAllItems()

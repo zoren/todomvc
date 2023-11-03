@@ -56,22 +56,30 @@ SELECT
 	(SELECT COUNT() FROM todos WHERE completed = 0) as active_count,
 	(SELECT COUNT() FROM todos) as total_count`);
 
+		const _dispatchUpdatedItemCounts = () =>
+			_dispatchEvent('updatedItemCounts', this.getItemCounts());
+
 		// insert item trigger
 		this.db.createFunction(
 			'inserted_item_fn',
-			(_ctxPtr, id, title, completed) =>
+			(_ctxPtr, id, title, completed) => {
 				_dispatchEvent('insertedItem', {
-					id,	title, completed: !!completed,
-				})
+					id,
+					title,
+					completed: !!completed,
+				});
+				_dispatchUpdatedItemCounts();
+			}
 		);
 
 		this.db.exec(`CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
 		BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`);
 
 		// delete item trigger
-		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) =>
-			_dispatchEvent('deletedItem', { id })
-		);
+		this.db.createFunction('deleted_item_fn', (_ctxPtr, id) => {
+			_dispatchEvent('deletedItem', { id });
+			_dispatchUpdatedItemCounts();
+		});
 
 		this.db.exec(`CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
 		BEGIN SELECT deleted_item_fn(old.id); END`);
@@ -87,12 +95,13 @@ SELECT
 		BEGIN SELECT updated_title_fn(new.id, new.title); END`);
 
 		// update item completed status trigger
-		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) =>
+		this.db.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
 			_dispatchEvent('updatedCompleted', {
 				id,
 				completed: !!completed,
-			})
-		);
+			});
+			_dispatchUpdatedItemCounts();
+		});
 
 		this.db
 			.exec(`CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
