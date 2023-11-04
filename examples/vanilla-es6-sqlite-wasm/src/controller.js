@@ -25,19 +25,40 @@ export default class Controller {
 		this._sqlHistory = sqlHistory;
 		this._sqlHistoryIndex = sqlHistory.length;
 
-		const insertedItem = (event) => {
+		// insert item trigger
+		ooDB.createFunction('inserted_item_fn', (_ctxPtr, id, title, completed) => {
 			this.view.clearNewTodo();
 			const route = this._currentRoute;
 			// add item if it should be visible in the current route
-			if (route === '' || event.completed === (route === 'completed'))
-				this.view.addItem(event);
-		};
+			if (route === '' || completed === (route === 'completed'))
+				this.view.addItem({ id, title, completed: !!completed });
+		});
 
-		const deletedItem = ({ id }) => this.view.removeItem(id);
+		ooDB.exec(`
+CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
+	BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`);
 
-		const updatedTitle = ({ id, title }) => this.view.editItemDone(id, title);
+		// delete item trigger
+		ooDB.createFunction('deleted_item_fn', (_ctxPtr, id) =>
+			this.view.removeItem(id)
+		);
 
-		const updatedCompleted = ({ id, completed }) => {
+		ooDB.exec(`
+CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
+	BEGIN SELECT deleted_item_fn(old.id); END`);
+
+		// update item title trigger
+		ooDB.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
+			this.view.editItemDone(id, title)
+		);
+
+		ooDB.exec(`
+CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
+	WHEN old.title <> new.title
+	BEGIN SELECT updated_title_fn(new.id, new.title); END`);
+
+		// update item completion status trigger
+		ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
 			const route = this._currentRoute;
 			if (route === '') {
 				this.view.setItemComplete(id, completed);
@@ -51,22 +72,12 @@ export default class Controller {
 					});
 				else this.view.removeItem(id);
 			}
-		};
+		});
 
-		const dispatchEvent = (type, data) => {
-			switch (type) {
-				case 'insertedItem':
-					return insertedItem(data);
-				case 'deletedItem':
-					return deletedItem(data);
-				case 'updatedTitle':
-					return updatedTitle(data);
-				case 'updatedCompleted':
-					return updatedCompleted(data);
-			}
-		};
-
-		TodoDB.createTriggers(this.ooDB, dispatchEvent);
+		ooDB.exec(`
+CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
+	WHEN old.completed <> new.completed
+	BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 	}
 
 	evalSQL = (sql) => {
