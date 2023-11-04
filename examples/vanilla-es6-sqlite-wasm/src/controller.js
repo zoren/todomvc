@@ -31,7 +31,7 @@ export default class Controller {
 		const ooDB = new sqlite3.oo1.JsStorageDb('local');
 
 		// add tracing before we run the create script so the trace shows it running
-		addStatementTracing(sqlite3, ooDB, (type, { expanded }) => {
+		addStatementTracing(sqlite3, ooDB, (type, expanded) => {
 			if (type === 'sqlTraceExpandedStatement') view.appendSQLTrace(expanded);
 		});
 		ooDB.exec(databaseCreateScript);

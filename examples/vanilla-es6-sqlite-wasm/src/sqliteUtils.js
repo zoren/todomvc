@@ -9,11 +9,11 @@ export const addStatementTracing = (sqlite3, db, callback) => {
 			const sqlTextCstr = x;
 			const sqlText = wasm.cstrToJs(sqlTextCstr);
 			if (sqlText.startsWith('--')) {
-				callback('sqlTraceStatement', { sqlText });
+				callback('sqlTraceStatement', sqlText);
 			} else {
 				// expand bound parameters into sql statement
-				const expanded = capi.sqlite3_expanded_sql(preparedStatement);
-				callback('sqlTraceExpandedStatement', { expanded });
+				const expandedSQLText = capi.sqlite3_expanded_sql(preparedStatement);
+				callback('sqlTraceExpandedStatement', expandedSQLText);
 			}
 		}),
 		0 // passed in as ctxPtr to traceToEvents
