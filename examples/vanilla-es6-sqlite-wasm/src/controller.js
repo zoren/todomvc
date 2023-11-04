@@ -35,11 +35,12 @@ export default class Controller {
 		ooDB.exec(databaseCreateScript);
 
 		// insert item trigger
-		ooDB.createFunction('inserted_item_fn', (_ctxPtr, id, title, completed) => {
+		ooDB.createFunction('inserted_item_fn', (_ctxPtr, id, title, completedInt) => {
 			this.view.clearNewTodo();
 			// add item if it should be visible in the current route
+			const completed = !!completedInt;
 			if (this.isAllRoute() || completed === this.isCompletedRoute())
-				this.view.addItem({ id, title, completed: !!completed });
+				this.view.addItem({ id, title, completed });
 		});
 
 		ooDB.exec(`
@@ -66,7 +67,8 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 	BEGIN SELECT updated_title_fn(new.id, new.title); END`);
 
 		// update item completion status trigger
-		ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
+		ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completedInt) => {
+			const completed = !!completedInt;
 			if (this.isAllRoute()) {
 				this.view.setItemComplete(id, completed);
 			} else {
