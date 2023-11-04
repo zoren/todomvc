@@ -16,7 +16,7 @@ const main = async () => {
 	const controller = new Controller(sqlite3, view);
 
 	const updateView = () => {
-		let hash = window.location.hash;
+		const hash = window.location.hash;
 		if (
 			hash !== '' &&
 			hash !== '#/' &&
@@ -24,7 +24,8 @@ const main = async () => {
 			hash !== '#/completed'
 		) {
 			console.warn(`Invalid hash route: '${hash}' setting all`);
-			hash = window.location.hash = '#/';
+			window.location.hash = '#/';
+			return
 		}
 		controller.setView(hash.replace(/^#\//, ''));
 	};
