@@ -15,10 +15,9 @@ const main = async () => {
 	 */
 	const controller = new Controller(sqlite3, view);
 
-	const updateView = () => controller.setView(document.location.hash);
+	const updateView = () => controller.setView(window.location.hash);
 	updateView();
 	$on(window, 'hashchange', updateView);
-
 };
 
 main();
