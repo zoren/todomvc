@@ -3,12 +3,12 @@ import View from './view.js';
 
 export default class Controller {
 	/**
-	 * @param  {!Database} todoDB A sqlite3 oo1 Database instance
+	 * @param  {!Database} ooDB A sqlite3 oo1 Database instance
 	 * @param  {!View} view A View instance
 	 * @param  {!Array<string>} sqlHistory A list of SQL statements
 	 */
-	constructor(todoDB, view, sqlHistory) {
-		this.todoDB = todoDB;
+	constructor(ooDB, view, sqlHistory) {
+		this.ooDB = ooDB;
 		this.view = view;
 
 		view.bindAddItem(this.addItem.bind(this));
@@ -46,7 +46,7 @@ export default class Controller {
 				if (completed === (route === 'completed'))
 					this.view.addItem({
 						id,
-						title: getItemTitle(this.todoDB, id),
+						title: getItemTitle(this.ooDB, id),
 						completed,
 					});
 				else this.view.removeItem(id);
@@ -66,13 +66,13 @@ export default class Controller {
 			}
 		};
 
-		TodoDB.createTriggers(this.todoDB, dispatchEvent);
+		TodoDB.createTriggers(this.ooDB, dispatchEvent);
 	}
 
 	evalSQL = (sql) => {
 		try {
 			const sqlHistory = this._sqlHistory;
-			this.view.appendSQLTrace(this.todoDB.selectObjects(sql));
+			this.view.appendSQLTrace(this.ooDB.selectObjects(sql));
 			// only add to history if it's different from the last one
 			if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
 			this._sqlHistoryIndex = sqlHistory.length;
@@ -122,11 +122,11 @@ export default class Controller {
 
 	reloadView = () => {
 		const route = this._currentRoute;
-		this.updateViewItemCounts(TodoDB.getItemCounts(this.todoDB));
+		this.updateViewItemCounts(TodoDB.getItemCounts(this.ooDB));
 		this.view.showItems(
 			route === ''
-				? TodoDB.getAllItems(this.todoDB)
-				: TodoDB.getItemsByCompletedStatus(this.todoDB, route === 'completed')
+				? TodoDB.getAllItems(this.ooDB)
+				: TodoDB.getItemsByCompletedStatus(this.ooDB, route === 'completed')
 		);
 	};
 
@@ -135,7 +135,7 @@ export default class Controller {
 	 *
 	 * @param {!string} title Title of the new item
 	 */
-	addItem = (title) => TodoDB.insertItem(this.todoDB, title);
+	addItem = (title) => TodoDB.insertItem(this.ooDB, title);
 
 	/**
 	 * Save an Item in edit.
@@ -145,7 +145,7 @@ export default class Controller {
 	 */
 	editItemSave(id, title) {
 		if (title.length > 0) {
-			TodoDB.setItemTitle(this.todoDB, id, title);
+			TodoDB.setItemTitle(this.ooDB, id, title);
 		} else {
 			this.removeItem(id);
 		}
@@ -157,19 +157,19 @@ export default class Controller {
 	 * @param {!number} id ID of the Item in edit
 	 */
 	editItemCancel = (id) =>
-		this.view.editItemDone(id, TodoDB.getItemTitle(this.todoDB, id));
+		this.view.editItemDone(id, TodoDB.getItemTitle(this.ooDB, id));
 
 	/**
 	 * Remove the data and elements related to an Item.
 	 *
 	 * @param {!number} id Item ID of item to remove
 	 */
-	removeItem = (id) => TodoDB.deleteItem(this.todoDB, id);
+	removeItem = (id) => TodoDB.deleteItem(this.ooDB, id);
 
 	/**
 	 * Remove all completed items.
 	 */
-	removeCompletedItems = () => TodoDB.deleteCompletedItems(this.todoDB);
+	removeCompletedItems = () => TodoDB.deleteCompletedItems(this.ooDB);
 
 	/**
 	 * Update an Item in storage based on the state of completed.
@@ -178,7 +178,7 @@ export default class Controller {
 	 * @param {!boolean} completed Desired completed state
 	 */
 	toggleCompleted = (id, completed) =>
-		TodoDB.setItemCompletedStatus(this.todoDB, id, completed);
+		TodoDB.setItemCompletedStatus(this.ooDB, id, completed);
 
 	/**
 	 * Set all items to complete or active.
@@ -186,5 +186,5 @@ export default class Controller {
 	 * @param {boolean} completed Desired completed state
 	 */
 	toggleAll = (completed) =>
-		TodoDB.setAllItemsCompletedStatus(this.todoDB, completed);
+		TodoDB.setAllItemsCompletedStatus(this.ooDB, completed);
 }
