@@ -109,7 +109,10 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 		// add a commit hook not a trigger to update the item counts
 		// this is so we don't update multiple times for one transaction
-		addCommitHook(sqlite3, ooDB, this.refreshViewItemTotalStatus);
+		// do it on a timeout so it happens after the commit, and to avoid SEGFAULT!
+		addCommitHook(sqlite3, ooDB, () =>
+			setTimeout(this.refreshViewItemTotalStatus)
+		);
 
 		// listen for changes from other browser sessions/tabs
 		window.addEventListener('storage', (event) => {
