@@ -108,8 +108,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		});
 
 		// if there are no items, add some
-		const { totalCount } = selectItemCounts(ooDB);
-		if (totalCount === 0) {
+		if (!ooDB.selectValue(`SELECT EXISTS (SELECT 1 FROM todos)`)) {
 			const davincisTodos = [
 				{ title: 'Design a new flying machine concept.', completed: true },
 				{ title: 'Finish sketch of the Last Supper.', completed: true },
