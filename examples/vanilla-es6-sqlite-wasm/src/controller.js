@@ -141,14 +141,15 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
 	updateViewItemCounts = () => {
-		const { activeCount, totalCount } = this.ooDB.selectObject(
-			`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
+		const activeCount = this.ooDB.selectValue(
+			`SELECT active_count FROM todo_counts`
 		);
-
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
-		const hasCompleted = totalCount > 0;
+		const hasCompleted = this.ooDB.selectValue(
+			`SELECT EXISTS (SELECT 1 FROM todos WHERE completed = 1)`
+		);
 		this.view.setClearCompletedButtonVisibility(hasCompleted);
 		this.view.setMainVisibility(hasCompleted);
 	};
