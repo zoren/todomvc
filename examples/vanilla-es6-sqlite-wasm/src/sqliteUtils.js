@@ -1,22 +1,31 @@
-export const addStatementTracing = (sqlite3, db, callback) => {
+export const addStatementTracing = (sqlite3, db, tracers) => {
 	const { capi, wasm } = sqlite3;
-	capi.sqlite3_trace_v2(
-		db,
-		capi.SQLITE_TRACE_STMT,
-		wasm.installFunction('i(ippp)', (traceEventCode, _ctxPtr, p, x) => {
+	const { traceStatement, traceExpandedStatement } = tracers;
+	const wasmTraceFn = wasm.installFunction(
+		'i(ippp)',
+		(traceEventCode, _ctxPtr, p, x) => {
 			if (traceEventCode !== capi.SQLITE_TRACE_STMT) return;
 			const preparedStatement = p;
 			const sqlTextCstr = x;
 			const sqlText = wasm.cstrToJs(sqlTextCstr);
+			// if the statement is a comment, trace it, otherwise expand it and trace it
+			// https://sqlite.org/c3ref/c_trace.html
 			if (sqlText.startsWith('--')) {
-				callback('sqlTraceStatement', sqlText);
+				if (traceStatement) traceStatement(sqlText);
 			} else {
 				// expand bound parameters into sql statement
-				const expandedSQLText = capi.sqlite3_expanded_sql(preparedStatement);
-				callback('sqlTraceExpandedStatement', expandedSQLText);
+				if (traceExpandedStatement) {
+					const expandedSQLText = capi.sqlite3_expanded_sql(preparedStatement);
+					traceExpandedStatement(expandedSQLText);
+				}
 			}
-		}),
-		0 // passed in as ctxPtr to traceToEvents
+		}
+	);
+	capi.sqlite3_trace_v2(
+		db,
+		capi.SQLITE_TRACE_STMT,
+		wasmTraceFn,
+		0 // passed in as _ctxPtr
 	);
 };
 
