@@ -7,16 +7,6 @@ const selectItemCounts = (db) =>
 		`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
 	);
 
-const insertItem = (db, $title) =>
-	db.selectValue(`INSERT INTO todos (title) VALUES ($title) RETURNING id`, {
-		$title,
-	});
-
-const setItemCompletedStatus = (db, $id, $completed) =>
-	db.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
-		bind: { $id, $completed },
-	});
-
 const selectItemTitle = (db, $id) =>
 	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
 
@@ -55,8 +45,15 @@ export default class Controller {
 				{ title: 'Write notes on fluid dynamics.' },
 			];
 			for (const { title, completed } of davincisTodos) {
-				const id = insertItem(ooDB, title);
-				if (completed) setItemCompletedStatus(ooDB, id, true);
+				ooDB.exec(
+					`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
+					{
+						bind: {
+							$title: title,
+							$completed: completed,
+						},
+					}
+				);
 			}
 		}
 
@@ -213,7 +210,10 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 *
 	 * @param {!string} title Title of the new item
 	 */
-	addItem = (title) => insertItem(this.ooDB, title);
+	addItem = ($title) =>
+		this.ooDB.exec(`INSERT INTO todos (title) VALUES ($title)`, {
+			bind: { $title },
+		});
 
 	/**
 	 * Save an Item in edit.
@@ -259,8 +259,10 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {!number} id ID of the target Item
 	 * @param {!boolean} completed Desired completed state
 	 */
-	toggleCompleted = (id, completed) =>
-		setItemCompletedStatus(this.ooDB, id, completed);
+	toggleCompleted = ($id, $completed) =>
+		this.ooDB.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
+			bind: { $id, $completed },
+		});
 
 	/**
 	 * Set all items to complete or active.
