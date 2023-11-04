@@ -164,10 +164,9 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	/**
 	 * Set and render the active route.
 	 *
-	 * @param {string} rawLocationHash '' | '#/' | '#/active' | '#/completed'
+	 * @param {string} route '' | 'active' | 'completed'
 	 */
-	setView(rawLocationHash) {
-		const route = rawLocationHash.replace(/^#\//, '');
+	setView(route) {
 		this.view.updateFilterButtons(route);
 		this._currentRoute = route;
 		this.reloadView();
