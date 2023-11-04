@@ -157,7 +157,8 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			`SELECT EXISTS (SELECT 1 FROM todos WHERE completed = 1)`
 		);
 		this.view.setClearCompletedButtonVisibility(hasCompleted);
-		this.view.setMainVisibility(hasCompleted);
+		const hasAny = this.ooDB.selectValue(`SELECT EXISTS (SELECT 1 FROM todos)`);
+		this.view.setMainVisibility(hasAny);
 	};
 
 	/**
