@@ -2,7 +2,7 @@ import databaseCreateScript from './create.sql?raw';
 import { addStatementTracing, addCommitHook } from './sqliteUtils.js';
 import View from './view.js';
 
-const getItemCounts = (db) =>
+const selectItemCounts = (db) =>
 	db.selectObject(
 		`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
 	);
@@ -22,15 +22,15 @@ const setItemCompletedStatus = (db, $id, $completed) =>
 		bind: { $id, $completed },
 	});
 
-const getItemTitle = (db, $id) =>
+const selectItemTitle = (db, $id) =>
 	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
 
-const getAllItems = (db) =>
+const selectAllItems = (db) =>
 	db
 		.selectObjects(`SELECT id, title, completed FROM todos`)
 		.map((item) => ({ ...item, completed: !!item.completed }));
 
-const getItemsByCompletedStatus = (db, $completed) =>
+const selectItemsByCompletionStatus = (db, $completed) =>
 	db
 		.selectObjects(
 			`SELECT id, title, completed FROM todos WHERE completed = $completed`,
@@ -70,11 +70,11 @@ export default class Controller {
 
 		// add a commit hook to update the item counts so we don't do it multiple times	for one transaction
 		addCommitHook(sqlite3, ooDB, () =>
-			this.updateViewItemCounts(getItemCounts(ooDB))
+			this.updateViewItemCounts(selectItemCounts(ooDB))
 		);
 
 		// if there are no items, add some
-		const { totalCount } = getItemCounts(ooDB);
+		const { totalCount } = selectItemCounts(ooDB);
 		if (totalCount === 0) {
 			const davincisTodos = [
 				{ title: 'Design a new flying machine concept.', completed: true },
@@ -145,7 +145,7 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 				if (completed === (route === 'completed'))
 					this.view.addItem({
 						id,
-						title: getItemTitle(ooDB, id),
+						title: selectItemTitle(ooDB, id),
 						completed,
 					});
 				else this.view.removeItem(id);
@@ -222,11 +222,11 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 	reloadView = () => {
 		const route = this._currentRoute;
-		this.updateViewItemCounts(getItemCounts(this.ooDB));
+		this.updateViewItemCounts(selectItemCounts(this.ooDB));
 		this.view.showItems(
 			route === ''
-				? getAllItems(this.ooDB)
-				: getItemsByCompletedStatus(this.ooDB, route === 'completed')
+				? selectAllItems(this.ooDB)
+				: selectItemsByCompletionStatus(this.ooDB, route === 'completed')
 		);
 	};
 
@@ -257,7 +257,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {!number} id ID of the Item in edit
 	 */
 	editItemCancel = (id) =>
-		this.view.editItemDone(id, getItemTitle(this.ooDB, id));
+		this.view.editItemDone(id, selectItemTitle(this.ooDB, id));
 
 	/**
 	 * Remove the data and elements related to an Item.
