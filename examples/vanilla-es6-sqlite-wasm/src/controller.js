@@ -37,9 +37,8 @@ export default class Controller {
 		// insert item trigger
 		ooDB.createFunction('inserted_item_fn', (_ctxPtr, id, title, completed) => {
 			this.view.clearNewTodo();
-			const route = this._currentRoute;
 			// add item if it should be visible in the current route
-			if (route === '' || completed === (route === 'completed'))
+			if (this.isAllRoute() || completed === this.isCompletedRoute())
 				this.view.addItem({ id, title, completed: !!completed });
 		});
 
@@ -68,12 +67,11 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 
 		// update item completion status trigger
 		ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completed) => {
-			const route = this._currentRoute;
-			if (route === '') {
+			if (this.isAllRoute()) {
 				this.view.setItemComplete(id, completed);
 			} else {
 				// add/remove item if it should be visible in the current route
-				if (completed === (route === 'completed'))
+				if (completed === this.isCompletedRoute())
 					this.view.addItem({
 						id,
 						title: selectItemTitle(ooDB, id),
@@ -161,26 +159,29 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		this.view.setMainVisibility(hasAny);
 	};
 
+	isAllRoute = () => this._currentRoute === '';
+
+	isCompletedRoute = () => this._currentRoute === 'completed';
+
 	/**
 	 * Set and render the active route.
 	 *
 	 * @param {string} route '' | 'active' | 'completed'
 	 */
 	setView(route) {
-		this.view.updateFilterButtons(route);
 		this._currentRoute = route;
+		this.view.updateFilterButtons(route);
 		this.reloadView();
 	}
 
 	reloadView = () => {
-		const route = this._currentRoute;
 		this.refreshViewItemTotalStatus();
 		const rawItems =
-			route === ''
+			this.isAllRoute()
 				? this.ooDB.selectObjects(`SELECT id, title, completed FROM todos`)
 				: this.ooDB.selectObjects(
 						`SELECT id, title, completed FROM todos WHERE completed = $completed`,
-						{ $completed: route === 'completed' }
+						{ $completed: this.isCompletedRoute() }
 				  );
 		const items = rawItems.map((item) => ({
 			...item,
