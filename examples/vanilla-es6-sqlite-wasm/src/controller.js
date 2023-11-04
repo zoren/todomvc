@@ -146,7 +146,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	updateViewItemCounts = () => {
+	refreshViewItemTotalStatus = () => {
 		const activeCount = this.ooDB.selectValue(
 			`SELECT COUNT() FROM todos WHERE completed = 0`
 		);
