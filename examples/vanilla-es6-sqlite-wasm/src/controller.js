@@ -94,9 +94,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 		// add a commit hook not a trigger to update the item counts
 		// this is so we don't update multiple times for one transaction
-		addCommitHook(sqlite3, ooDB, () =>
-			this.updateViewItemCounts(selectItemCounts(ooDB))
-		);
+		addCommitHook(sqlite3, ooDB, this.updateViewItemCounts);
 
 		// listen for changes from other sessions
 		window.addEventListener('storage', (event) => {
@@ -148,7 +146,9 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
-	updateViewItemCounts = ({ activeCount, totalCount }) => {
+	updateViewItemCounts = () => {
+		const { activeCount, totalCount } = selectItemCounts(this.ooDB);
+
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
 
@@ -171,7 +171,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 	reloadView = () => {
 		const route = this._currentRoute;
-		this.updateViewItemCounts(selectItemCounts(this.ooDB));
+		this.updateViewItemCounts();
 		const rawItems =
 			route === ''
 				? this.ooDB.selectObjects(`SELECT id, title, completed FROM todos`)
