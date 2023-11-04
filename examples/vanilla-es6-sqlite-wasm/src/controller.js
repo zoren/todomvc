@@ -1,5 +1,53 @@
-import * as TodoDB from './database.js';
+import databaseCreateScript from './create.sql?raw';
+import { addStatementTracing, addCommitHook } from './sqliteUtils.js';
 import View from './view.js';
+
+const getItemCounts = (db) =>
+	db.selectObject(
+		`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
+	);
+
+const insertItem = (db, $title) =>
+	db.selectValue(`INSERT INTO todos (title) VALUES ($title) RETURNING id`, {
+		$title,
+	});
+
+const setItemTitle = (db, $id, $title) =>
+	db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
+		bind: { $id, $title },
+	});
+
+const setItemCompletedStatus = (db, $id, $completed) =>
+	db.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
+		bind: { $id, $completed },
+	});
+
+const getItemTitle = (db, $id) =>
+	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
+
+const getAllItems = (db) =>
+	db
+		.selectObjects(`SELECT id, title, completed FROM todos`)
+		.map((item) => ({ ...item, completed: !!item.completed }));
+
+const getItemsByCompletedStatus = (db, $completed) =>
+	db
+		.selectObjects(
+			`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+			{ $completed }
+		)
+		.map((item) => ({ ...item, completed: !!item.completed }));
+
+const deleteItem = (db, $id) =>
+	db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
+
+const deleteCompletedItems = (db) =>
+	db.exec(`DELETE FROM todos WHERE completed = 1`);
+
+const setAllItemsCompletedStatus = (db, $completed) =>
+	db.exec(`UPDATE todos SET completed = $completed`, {
+		bind: { $completed },
+	});
 
 export default class Controller {
 	/**
@@ -7,9 +55,39 @@ export default class Controller {
 	 * @param  {!View} view A View instance
 	 * @param  {!Array<string>} sqlHistory A list of SQL statements
 	 */
-	constructor(ooDB, view, sqlHistory) {
-		this.ooDB = ooDB;
+	constructor(sqlite3, view, sqlHistory) {
 		this.view = view;
+
+		const ooDB = new sqlite3.oo1.JsStorageDb('local');
+
+		this.ooDB = ooDB;
+
+		// add tracing before we run the create script so the user can see what it does
+		addStatementTracing(sqlite3, ooDB, (type, { expanded }) => {
+			if (type === 'sqlTraceExpandedStatement') view.appendSQLTrace(expanded);
+		});
+		ooDB.exec(databaseCreateScript);
+
+		// add a commit hook to update the item counts so we don't do it multiple times	for one transaction
+		addCommitHook(sqlite3, ooDB, () =>
+			this.updateViewItemCounts(getItemCounts(ooDB))
+		);
+
+		// if there are no items, add some
+		const { totalCount } = getItemCounts(ooDB);
+		if (totalCount === 0) {
+			const davincisTodos = [
+				{ title: 'Design a new flying machine concept.', completed: true },
+				{ title: 'Finish sketch of the Last Supper.', completed: true },
+				{ title: 'Research the mechanics of bird flight.', completed: true },
+				{ title: 'Experiment with new painting techniques.' },
+				{ title: 'Write notes on fluid dynamics.' },
+			];
+			for (const { title, completed } of davincisTodos) {
+				const id = insertItem(ooDB, title);
+				if (completed) setItemCompletedStatus(ooDB, id, true);
+			}
+		}
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -67,7 +145,7 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 				if (completed === (route === 'completed'))
 					this.view.addItem({
 						id,
-						title: getItemTitle(this.ooDB, id),
+						title: getItemTitle(ooDB, id),
 						completed,
 					});
 				else this.view.removeItem(id);
@@ -78,6 +156,17 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
 	WHEN old.completed <> new.completed
 	BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
+
+		// listen for changes from other sessions
+		window.addEventListener('storage', (event) => {
+			// when other session clears the journal, it means it has committed, potentially changing all data
+			if (
+				event.storageArea === window.localStorage &&
+				event.key === 'kvvfs-local-jrnl' &&
+				event.newValue === null
+			)
+				this.reloadView();
+		});
 	}
 
 	evalSQL = (sql) => {
@@ -133,11 +222,11 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 	reloadView = () => {
 		const route = this._currentRoute;
-		this.updateViewItemCounts(TodoDB.getItemCounts(this.ooDB));
+		this.updateViewItemCounts(getItemCounts(this.ooDB));
 		this.view.showItems(
 			route === ''
-				? TodoDB.getAllItems(this.ooDB)
-				: TodoDB.getItemsByCompletedStatus(this.ooDB, route === 'completed')
+				? getAllItems(this.ooDB)
+				: getItemsByCompletedStatus(this.ooDB, route === 'completed')
 		);
 	};
 
@@ -146,7 +235,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 *
 	 * @param {!string} title Title of the new item
 	 */
-	addItem = (title) => TodoDB.insertItem(this.ooDB, title);
+	addItem = (title) => insertItem(this.ooDB, title);
 
 	/**
 	 * Save an Item in edit.
@@ -156,7 +245,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 */
 	editItemSave(id, title) {
 		if (title.length > 0) {
-			TodoDB.setItemTitle(this.ooDB, id, title);
+			setItemTitle(this.ooDB, id, title);
 		} else {
 			this.removeItem(id);
 		}
@@ -168,19 +257,19 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {!number} id ID of the Item in edit
 	 */
 	editItemCancel = (id) =>
-		this.view.editItemDone(id, TodoDB.getItemTitle(this.ooDB, id));
+		this.view.editItemDone(id, getItemTitle(this.ooDB, id));
 
 	/**
 	 * Remove the data and elements related to an Item.
 	 *
 	 * @param {!number} id Item ID of item to remove
 	 */
-	removeItem = (id) => TodoDB.deleteItem(this.ooDB, id);
+	removeItem = (id) => deleteItem(this.ooDB, id);
 
 	/**
 	 * Remove all completed items.
 	 */
-	removeCompletedItems = () => TodoDB.deleteCompletedItems(this.ooDB);
+	removeCompletedItems = () => deleteCompletedItems(this.ooDB);
 
 	/**
 	 * Update an Item in storage based on the state of completed.
@@ -189,13 +278,12 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {!boolean} completed Desired completed state
 	 */
 	toggleCompleted = (id, completed) =>
-		TodoDB.setItemCompletedStatus(this.ooDB, id, completed);
+		setItemCompletedStatus(this.ooDB, id, completed);
 
 	/**
 	 * Set all items to complete or active.
 	 *
 	 * @param {boolean} completed Desired completed state
 	 */
-	toggleAll = (completed) =>
-		TodoDB.setAllItemsCompletedStatus(this.ooDB, completed);
+	toggleAll = (completed) => setAllItemsCompletedStatus(this.ooDB, completed);
 }
