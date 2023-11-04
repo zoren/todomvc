@@ -12,11 +12,6 @@ const insertItem = (db, $title) =>
 		$title,
 	});
 
-const setItemTitle = (db, $id, $title) =>
-	db.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
-		bind: { $id, $title },
-	});
-
 const setItemCompletedStatus = (db, $id, $completed) =>
 	db.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
 		bind: { $id, $completed },
@@ -24,30 +19,6 @@ const setItemCompletedStatus = (db, $id, $completed) =>
 
 const selectItemTitle = (db, $id) =>
 	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
-
-const selectAllItems = (db) =>
-	db
-		.selectObjects(`SELECT id, title, completed FROM todos`)
-		.map((item) => ({ ...item, completed: !!item.completed }));
-
-const selectItemsByCompletionStatus = (db, $completed) =>
-	db
-		.selectObjects(
-			`SELECT id, title, completed FROM todos WHERE completed = $completed`,
-			{ $completed }
-		)
-		.map((item) => ({ ...item, completed: !!item.completed }));
-
-const deleteItem = (db, $id) =>
-	db.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
-
-const deleteCompletedItems = (db) =>
-	db.exec(`DELETE FROM todos WHERE completed = 1`);
-
-const setAllItemsCompletedStatus = (db, $completed) =>
-	db.exec(`UPDATE todos SET completed = $completed`, {
-		bind: { $completed },
-	});
 
 export default class Controller {
 	/**
@@ -223,11 +194,18 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	reloadView = () => {
 		const route = this._currentRoute;
 		this.updateViewItemCounts(selectItemCounts(this.ooDB));
-		this.view.showItems(
+		const rawItems =
 			route === ''
-				? selectAllItems(this.ooDB)
-				: selectItemsByCompletionStatus(this.ooDB, route === 'completed')
-		);
+				? this.ooDB.selectObjects(`SELECT id, title, completed FROM todos`)
+				: this.ooDB.selectObjects(
+						`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+						{ $completed: route === 'completed' }
+				  );
+		const items = rawItems.map((item) => ({
+			...item,
+			completed: !!item.completed,
+		}));
+		this.view.showItems(items);
 	};
 
 	/**
@@ -243,11 +221,13 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {number} id ID of the Item in edit
 	 * @param {!string} title New title for the Item in edit
 	 */
-	editItemSave(id, title) {
-		if (title.length > 0) {
-			setItemTitle(this.ooDB, id, title);
+	editItemSave($id, $title) {
+		if ($title.length > 0) {
+			this.ooDB.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
+				bind: { $id, $title },
+			});
 		} else {
-			this.removeItem(id);
+			this.removeItem($id);
 		}
 	}
 
@@ -264,12 +244,14 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 *
 	 * @param {!number} id Item ID of item to remove
 	 */
-	removeItem = (id) => deleteItem(this.ooDB, id);
+	removeItem = ($id) =>
+		this.ooDB.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
 
 	/**
 	 * Remove all completed items.
 	 */
-	removeCompletedItems = () => deleteCompletedItems(this.ooDB);
+	removeCompletedItems = () =>
+		this.ooDB.exec(`DELETE FROM todos WHERE completed = 1`);
 
 	/**
 	 * Update an Item in storage based on the state of completed.
@@ -285,5 +267,8 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 *
 	 * @param {boolean} completed Desired completed state
 	 */
-	toggleAll = (completed) => setAllItemsCompletedStatus(this.ooDB, completed);
+	toggleAll = ($completed) =>
+		this.ooDB.exec(`UPDATE todos SET completed = $completed`, {
+			bind: { $completed },
+		});
 }
