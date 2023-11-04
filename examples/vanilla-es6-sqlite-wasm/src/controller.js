@@ -14,48 +14,9 @@ export default class Controller {
 	/**
 	 * @param  {!Database} ooDB A sqlite3 oo1 Database instance
 	 * @param  {!View} view A View instance
-	 * @param  {!Array<string>} sqlHistory A list of SQL statements
 	 */
-	constructor(sqlite3, view, sqlHistory) {
+	constructor(sqlite3, view) {
 		this.view = view;
-
-		const ooDB = new sqlite3.oo1.JsStorageDb('local');
-
-		this.ooDB = ooDB;
-
-		// add tracing before we run the create script so the user can see what it does
-		addStatementTracing(sqlite3, ooDB, (type, { expanded }) => {
-			if (type === 'sqlTraceExpandedStatement') view.appendSQLTrace(expanded);
-		});
-		ooDB.exec(databaseCreateScript);
-
-		// add a commit hook to update the item counts so we don't do it multiple times	for one transaction
-		addCommitHook(sqlite3, ooDB, () =>
-			this.updateViewItemCounts(selectItemCounts(ooDB))
-		);
-
-		// if there are no items, add some
-		const { totalCount } = selectItemCounts(ooDB);
-		if (totalCount === 0) {
-			const davincisTodos = [
-				{ title: 'Design a new flying machine concept.', completed: true },
-				{ title: 'Finish sketch of the Last Supper.', completed: true },
-				{ title: 'Research the mechanics of bird flight.', completed: true },
-				{ title: 'Experiment with new painting techniques.' },
-				{ title: 'Write notes on fluid dynamics.' },
-			];
-			for (const { title, completed } of davincisTodos) {
-				ooDB.exec(
-					`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
-					{
-						bind: {
-							$title: title,
-							$completed: completed,
-						},
-					}
-				);
-			}
-		}
 
 		view.bindAddItem(this.addItem.bind(this));
 		view.bindEditItemSave(this.editItemSave.bind(this));
@@ -67,9 +28,13 @@ export default class Controller {
 		view.bindEvalSQL(this.evalSQL);
 		view.bindSQLConsoleHistory(this.navigateSQLHistory);
 
-		this._currentRoute = '';
-		this._sqlHistory = sqlHistory;
-		this._sqlHistoryIndex = sqlHistory.length;
+		const ooDB = new sqlite3.oo1.JsStorageDb('local');
+
+		// add tracing before we run the create script so the trace shows it running
+		addStatementTracing(sqlite3, ooDB, (type, { expanded }) => {
+			if (type === 'sqlTraceExpandedStatement') view.appendSQLTrace(expanded);
+		});
+		ooDB.exec(databaseCreateScript);
 
 		// insert item trigger
 		ooDB.createFunction('inserted_item_fn', (_ctxPtr, id, title, completed) => {
@@ -125,6 +90,12 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	WHEN old.completed <> new.completed
 	BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
 
+		// add a commit hook not a trigger to update the item counts
+		// this is so we don't update multiple times for one transaction
+		addCommitHook(sqlite3, ooDB, () =>
+			this.updateViewItemCounts(selectItemCounts(ooDB))
+		);
+
 		// listen for changes from other sessions
 		window.addEventListener('storage', (event) => {
 			// when other session clears the journal, it means it has committed, potentially changing all data
@@ -135,34 +106,42 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			)
 				this.reloadView();
 		});
-	}
 
-	evalSQL = (sql) => {
-		try {
-			const sqlHistory = this._sqlHistory;
-			this.view.appendSQLTrace(this.ooDB.selectObjects(sql));
-			// only add to history if it's different from the last one
-			if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
-			this._sqlHistoryIndex = sqlHistory.length;
-			this.view.setSqlInputValue('');
-		} catch (e) {
-			this.view.appendSQLTrace(e);
+		// if there are no items, add some
+		const { totalCount } = selectItemCounts(ooDB);
+		if (totalCount === 0) {
+			const davincisTodos = [
+				{ title: 'Design a new flying machine concept.', completed: true },
+				{ title: 'Finish sketch of the Last Supper.', completed: true },
+				{ title: 'Research the mechanics of bird flight.', completed: true },
+				{ title: 'Experiment with new painting techniques.' },
+				{ title: 'Write notes on fluid dynamics.' },
+			];
+			for (const { title, completed } of davincisTodos) {
+				ooDB.exec(
+					`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
+					{
+						bind: {
+							$title: title,
+							$completed: completed,
+						},
+					}
+				);
+			}
 		}
-	};
 
-	navigateSQLHistory = (upDownDiff) => {
-		const sqlHistory = this._sqlHistory;
-		const sqlHistoryIndex = this._sqlHistoryIndex;
-		if (upDownDiff === -1 && sqlHistoryIndex === 0) return;
-		if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return;
-		const newSqlHistoryIndex = sqlHistoryIndex + upDownDiff;
-		const newInput =
-			newSqlHistoryIndex === sqlHistory.length
-				? ''
-				: sqlHistory[newSqlHistoryIndex];
-		this._sqlHistoryIndex = newSqlHistoryIndex;
-		this.view.setSqlInputValue(newInput);
-	};
+		const sqlHistory = [
+			`UPDATE todos SET completed = NOT completed`,
+			`SELECT * FROM todos`,
+			`DELETE FROM todos WHERE completed = 1`,
+			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
+		];
+		this._sqlHistory = sqlHistory;
+		this._sqlHistoryIndex = sqlHistory.length;
+		this.ooDB = ooDB;
+
+		this._currentRoute = '';
+	}
 
 	/**
 	 * Refresh the view from the counts of completed, active and total todos.
@@ -273,4 +252,31 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		this.ooDB.exec(`UPDATE todos SET completed = $completed`, {
 			bind: { $completed },
 		});
+
+	evalSQL = (sql) => {
+		try {
+			const sqlHistory = this._sqlHistory;
+			this.view.appendSQLTrace(this.ooDB.selectObjects(sql));
+			// only add to history if it's different from the last one
+			if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
+			this._sqlHistoryIndex = sqlHistory.length;
+			this.view.setSqlInputValue('');
+		} catch (e) {
+			this.view.appendSQLTrace(e);
+		}
+	};
+
+	navigateSQLHistory = (upDownDiff) => {
+		const sqlHistory = this._sqlHistory;
+		const sqlHistoryIndex = this._sqlHistoryIndex;
+		if (upDownDiff === -1 && sqlHistoryIndex === 0) return;
+		if (upDownDiff === 1 && sqlHistoryIndex === sqlHistory.length) return;
+		const newSqlHistoryIndex = sqlHistoryIndex + upDownDiff;
+		const newInput =
+			newSqlHistoryIndex === sqlHistory.length
+				? ''
+				: sqlHistory[newSqlHistoryIndex];
+		this._sqlHistoryIndex = newSqlHistoryIndex;
+		this.view.setSqlInputValue(newInput);
+	};
 }
