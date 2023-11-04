@@ -2,11 +2,6 @@ import databaseCreateScript from './create.sql?raw';
 import { addStatementTracing, addCommitHook } from './sqliteUtils.js';
 import View from './view.js';
 
-const selectItemCounts = (db) =>
-	db.selectObject(
-		`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
-	);
-
 const selectItemTitle = (db, $id) =>
 	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
 
@@ -29,6 +24,7 @@ export default class Controller {
 		view.bindSQLConsoleHistory(this.navigateSQLHistory);
 
 		const ooDB = new sqlite3.oo1.JsStorageDb('local');
+		this.ooDB = ooDB;
 
 		// add tracing before we run the create script so the trace shows it running
 		addStatementTracing(sqlite3, ooDB, {
@@ -137,7 +133,6 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		];
 		this._sqlHistory = sqlHistory;
 		this._sqlHistoryIndex = sqlHistory.length;
-		this.ooDB = ooDB;
 
 		this._currentRoute = '';
 	}
@@ -146,7 +141,9 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * Refresh the view from the counts of completed, active and total todos.
 	 */
 	updateViewItemCounts = () => {
-		const { activeCount, totalCount } = selectItemCounts(this.ooDB);
+		const { activeCount, totalCount } = this.ooDB.selectObject(
+			`SELECT active_count as activeCount, total_count as totalCount FROM todo_counts`
+		);
 
 		this.view.setItemsLeft(activeCount);
 		this.view.setCompleteAllCheckbox(activeCount === 0);
