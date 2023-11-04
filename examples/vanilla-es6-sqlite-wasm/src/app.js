@@ -17,15 +17,11 @@ const main = async () => {
 
 	const updateView = () => {
 		const hash = window.location.hash;
-		if (
-			hash !== '' &&
-			hash !== '#/' &&
-			hash !== '#/active' &&
-			hash !== '#/completed'
-		) {
+		const validHashes = ['', '#/', '#/active', '#/completed'];
+		if (!validHashes.includes(hash)) {
 			console.warn(`Invalid hash route: '${hash}' setting all`);
 			window.location.hash = '#/';
-			return
+			return;
 		}
 		controller.setView(hash.replace(/^#\//, ''));
 	};
