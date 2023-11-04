@@ -3,7 +3,7 @@ import { addStatementTracing, addCommitHook } from './sqliteUtils.js';
 import View from './view.js';
 
 const selectItemTitle = (db, $id) =>
-	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
+	db.selectValue(`SELECT title FROM todos WHERE rowid = $id`, { $id });
 
 const addDemoTodos = (ooDB) => {
 	const davincisTodos = [
@@ -69,7 +69,7 @@ export default class Controller {
 
 		ooDB.exec(`
 CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
-	BEGIN SELECT inserted_item_fn(new.id, new.title, new.completed); END`);
+	BEGIN SELECT inserted_item_fn(new.rowid, new.title, new.completed); END`);
 
 		// delete item trigger
 		ooDB.createFunction('deleted_item_fn', (_ctxPtr, id) =>
@@ -78,7 +78,7 @@ CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
 
 		ooDB.exec(`
 CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
-	BEGIN SELECT deleted_item_fn(old.id); END`);
+	BEGIN SELECT deleted_item_fn(old.rowid); END`);
 
 		// update item title trigger
 		ooDB.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
@@ -88,7 +88,7 @@ CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
 		ooDB.exec(`
 CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 	WHEN old.title <> new.title
-	BEGIN SELECT updated_title_fn(new.id, new.title); END`);
+	BEGIN SELECT updated_title_fn(new.rowid, new.title); END`);
 
 		// update item completion status trigger
 		ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completedInt) => {
@@ -110,7 +110,7 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 		ooDB.exec(`
 CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
 	WHEN old.completed <> new.completed
-	BEGIN SELECT updated_completed_fn(new.id, new.completed); END`);
+	BEGIN SELECT updated_completed_fn(new.rowid, new.completed); END`);
 
 		// add a commit hook not a trigger to update the item counts
 		// this is so we don't update multiple times for one transaction
@@ -186,9 +186,9 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	reloadView = () => {
 		this.refreshViewItemTotalStatus();
 		const rawItems = this.isAllRoute()
-			? this.ooDB.selectObjects(`SELECT id, title, completed FROM todos`)
+			? this.ooDB.selectObjects(`SELECT rowid, title, completed FROM todos`)
 			: this.ooDB.selectObjects(
-					`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+					`SELECT rowid, title, completed FROM todos WHERE completed = $completed`,
 					{ $completed: this.isCompletedRoute() }
 			  );
 		const items = rawItems.map((item) => ({
@@ -216,7 +216,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 */
 	editItemSave($id, $title) {
 		if ($title.length > 0) {
-			this.ooDB.exec(`UPDATE todos SET title = $title WHERE id = $id`, {
+			this.ooDB.exec(`UPDATE todos SET title = $title WHERE rowid = $id`, {
 				bind: { $id, $title },
 			});
 		} else {
@@ -238,7 +238,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {!number} id Item ID of item to remove
 	 */
 	removeItem = ($id) =>
-		this.ooDB.exec(`DELETE FROM todos WHERE id = $id`, { bind: { $id } });
+		this.ooDB.exec(`DELETE FROM todos WHERE rowid = $id`, { bind: { $id } });
 
 	/**
 	 * Remove all completed items.
@@ -253,7 +253,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {!boolean} completed Desired completed state
 	 */
 	toggleCompleted = ($id, $completed) =>
-		this.ooDB.exec(`UPDATE todos SET completed = $completed WHERE id = $id`, {
+		this.ooDB.exec(`UPDATE todos SET completed = $completed WHERE rowid = $id`, {
 			bind: { $id, $completed },
 		});
 
