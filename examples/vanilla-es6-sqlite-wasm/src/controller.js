@@ -56,13 +56,16 @@ export default class Controller {
 		ooDB.exec(databaseCreateScript);
 
 		// insert item trigger
-		ooDB.createFunction('inserted_item_fn', (_ctxPtr, id, title, completedInt) => {
-			this.view.clearNewTodo();
-			// add item if it should be visible in the current route
-			const completed = !!completedInt;
-			if (this.isAllRoute() || completed === this.isCompletedRoute())
-				this.view.addItem({ id, title, completed });
-		});
+		ooDB.createFunction(
+			'inserted_item_fn',
+			(_ctxPtr, id, title, completedInt) => {
+				this.view.clearNewTodo();
+				// add item if it should be visible in the current route
+				const completed = !!completedInt;
+				if (this.isAllRoute() || completed === this.isCompletedRoute())
+					this.view.addItem({ id, title, completed });
+			}
+		);
 
 		ooDB.exec(`
 CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
@@ -182,13 +185,12 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 	reloadView = () => {
 		this.refreshViewItemTotalStatus();
-		const rawItems =
-			this.isAllRoute()
-				? this.ooDB.selectObjects(`SELECT id, title, completed FROM todos`)
-				: this.ooDB.selectObjects(
-						`SELECT id, title, completed FROM todos WHERE completed = $completed`,
-						{ $completed: this.isCompletedRoute() }
-				  );
+		const rawItems = this.isAllRoute()
+			? this.ooDB.selectObjects(`SELECT id, title, completed FROM todos`)
+			: this.ooDB.selectObjects(
+					`SELECT id, title, completed FROM todos WHERE completed = $completed`,
+					{ $completed: this.isCompletedRoute() }
+			  );
 		const items = rawItems.map((item) => ({
 			...item,
 			completed: !!item.completed,
