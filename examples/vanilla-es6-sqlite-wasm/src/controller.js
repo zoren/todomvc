@@ -5,6 +5,25 @@ import View from './view.js';
 const selectItemTitle = (db, $id) =>
 	db.selectValue(`SELECT title FROM todos WHERE id = $id`, { $id });
 
+const addDemoTodos = (ooDB) => {
+	const davincisTodos = [
+		{ $title: 'Design a new flying machine concept.', $completed: true },
+		{ $title: 'Finish sketch of the Last Supper.', $completed: true },
+		{ $title: 'Research the mechanics of bird flight.', $completed: true },
+		{ $title: 'Experiment with new painting techniques.', $completed: false },
+		{ $title: 'Write notes on fluid dynamics.', $completed: false },
+	];
+	// if there are no items, add some
+	if (!ooDB.selectValue(`SELECT EXISTS (SELECT 1 FROM todos)`)) {
+		for (const bind of davincisTodos) {
+			ooDB.exec(
+				`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
+				{ bind }
+			);
+		}
+	}
+};
+
 export default class Controller {
 	/**
 	 * @param  {!Database} ooDB A sqlite3 oo1 Database instance
@@ -109,27 +128,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			}
 		});
 
-		// if there are no items, add some
-		if (!ooDB.selectValue(`SELECT EXISTS (SELECT 1 FROM todos)`)) {
-			const davincisTodos = [
-				{ title: 'Design a new flying machine concept.', completed: true },
-				{ title: 'Finish sketch of the Last Supper.', completed: true },
-				{ title: 'Research the mechanics of bird flight.', completed: true },
-				{ title: 'Experiment with new painting techniques.' },
-				{ title: 'Write notes on fluid dynamics.' },
-			];
-			for (const { title, completed } of davincisTodos) {
-				ooDB.exec(
-					`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
-					{
-						bind: {
-							$title: title,
-							$completed: !!completed,
-						},
-					}
-				);
-			}
-		}
+		addDemoTodos(ooDB);
 
 		const sqlHistory = [
 			`UPDATE todos SET completed = NOT completed`,
