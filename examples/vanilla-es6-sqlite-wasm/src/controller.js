@@ -123,7 +123,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 					{
 						bind: {
 							$title: title,
-							$completed: completed,
+							$completed: !!completed,
 						},
 					}
 				);
