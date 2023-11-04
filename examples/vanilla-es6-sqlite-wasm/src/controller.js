@@ -92,15 +92,21 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		// this is so we don't update multiple times for one transaction
 		addCommitHook(sqlite3, ooDB, this.updateViewItemCounts);
 
-		// listen for changes from other sessions
+		// listen for changes from other browser sessions/tabs
 		window.addEventListener('storage', (event) => {
-			// when other session clears the journal, it means it has committed, potentially changing all data
+			// in journal_mode = DELETE the last thing SQLite when committing is to delete the journal
+			// so we can use that as a signal that another session has committed
+			// relying on 'kvvfs-local-jrnl' is brittle
+			// but a kind expert on the SQLite forum assured us that it the key is very unlikely to change:
+			// https://sqlite.org/forum/forumpost/d8defe9070
 			if (
 				event.storageArea === window.localStorage &&
 				event.key === 'kvvfs-local-jrnl' &&
 				event.newValue === null
-			)
+			) {
+				// we don't know what changed, so just reload the entire view
 				this.reloadView();
+			}
 		});
 
 		// if there are no items, add some
