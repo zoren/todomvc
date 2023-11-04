@@ -15,12 +15,14 @@ const addDemoTodos = (ooDB) => {
 	];
 	// if there are no items, add some
 	if (!ooDB.selectValue(`SELECT EXISTS (SELECT 1 FROM todos)`)) {
-		for (const bind of davincisTodos) {
-			ooDB.exec(
-				`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
-				{ bind }
-			);
-		}
+		ooDB.transaction(() => {
+			for (const bind of davincisTodos) {
+				ooDB.exec(
+					`INSERT INTO todos (title, completed) VALUES ($title, $completed)`,
+					{ bind }
+				);
+			}
+		});
 	}
 };
 
