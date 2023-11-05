@@ -137,7 +137,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		// we update on a timeout so it happens after the hook returns
 		// otherwise the hook could fail when refreshViewItemTotalStatus runs a select statement
 		capi.sqlite3_commit_hook(
-			db,
+			ooDB,
 			wasm.installFunction('i(p)', (_ctxPtr) => {
 				setTimeout(this.refreshViewItemTotalStatus);
 				return 0;
