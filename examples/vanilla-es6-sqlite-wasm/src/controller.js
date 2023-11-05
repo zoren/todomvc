@@ -30,7 +30,7 @@ const sqlHistory = [
 	`UPDATE todos SET completed = NOT completed`,
 	`SELECT rowid, completed, title FROM todos`,
 	`DELETE FROM todos WHERE completed = 1`,
-	`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
+	`INSERT INTO todos (title) VALUES ('Sketch designs for calculating machine.')`,
 ];
 
 export default class Controller {
