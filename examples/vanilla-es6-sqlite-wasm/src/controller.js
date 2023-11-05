@@ -121,8 +121,8 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 		// add a commit hook not a trigger to update the item counts
 		// this is so we don't update multiple times for one transaction
-		// do it on a timeout so it happens after the hook returns
-		// otherwise the hook can fail when refreshViewItemTotalStatus runs a select
+		// we update on a timeout so it happens after the hook returns
+		// otherwise the hook could fail when refreshViewItemTotalStatus runs a select statement
 		const { capi, wasm } = sqlite3;
 		capi.sqlite3_commit_hook(
 			db,
