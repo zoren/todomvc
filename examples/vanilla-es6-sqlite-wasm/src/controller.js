@@ -261,9 +261,12 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 * @param {!boolean} completed Desired completed state
 	 */
 	toggleCompleted = ($id, $completed) =>
-		this.ooDB.exec(`UPDATE todos SET completed = $completed WHERE rowid = $id`, {
-			bind: { $id, $completed },
-		});
+		this.ooDB.exec(
+			`UPDATE todos SET completed = $completed WHERE rowid = $id`,
+			{
+				bind: { $id, $completed },
+			}
+		);
 
 	/**
 	 * Set all items to complete or active.
