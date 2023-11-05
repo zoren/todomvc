@@ -1,5 +1,4 @@
 import databaseCreateScript from './create.sql?raw';
-import { addStatementTracing } from './sqliteUtils.js';
 import View from './view.js';
 
 const selectItemTitle = (db, $id) =>
@@ -51,15 +50,29 @@ export default class Controller {
 		view.bindEvalSQL(this.evalSQL);
 		view.bindSQLConsoleHistory(this.navigateSQLHistory);
 
-		const ooDB = new sqlite3.oo1.JsStorageDb('local');
+		const { capi, wasm, oo1 } = sqlite3;
+
+		const ooDB = new oo1.JsStorageDb('local');
 		this.ooDB = ooDB;
 
 		// add tracing before we run the create script so the trace shows it running
-		addStatementTracing(sqlite3, ooDB, {
-			traceExpandedStatement(expanded) {
-				view.appendSQLTrace(expanded);
-			},
-		});
+		capi.sqlite3_trace_v2(
+			ooDB,
+			capi.SQLITE_TRACE_STMT,
+			wasm.installFunction(
+				'i(ippp)',
+				(_traceEventCode, _ctxPtr, preparedStatement, sqlTextCstr) => {
+					const sqlText = wasm.cstrToJs(sqlTextCstr);
+					// if the statement is a comment, ignore it, otherwise expand it and trace it
+					if (sqlText.startsWith('--')) return;
+					// expand bound parameters into sql statement
+					const expandedSQLText = capi.sqlite3_expanded_sql(preparedStatement);
+					view.appendSQLTrace(expandedSQLText);
+				}
+			),
+			0 // passed in as _ctxPtr
+		);
+
 		ooDB.exec(databaseCreateScript);
 
 		// insert item trigger
@@ -123,7 +136,6 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		// this is so we don't update multiple times for one transaction
 		// we update on a timeout so it happens after the hook returns
 		// otherwise the hook could fail when refreshViewItemTotalStatus runs a select statement
-		const { capi, wasm } = sqlite3;
 		capi.sqlite3_commit_hook(
 			db,
 			wasm.installFunction('i(p)', (_ctxPtr) => {
