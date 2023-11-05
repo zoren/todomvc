@@ -26,6 +26,13 @@ const addDemoTodos = (ooDB) => {
 	}
 };
 
+const sqlHistory = [
+	`UPDATE todos SET completed = NOT completed`,
+	`SELECT rowid, completed, title FROM todos`,
+	`DELETE FROM todos WHERE completed = 1`,
+	`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
+];
+
 export default class Controller {
 	/**
 	 * @param  {!Database} ooDB A sqlite3 oo1 Database instance
@@ -138,14 +145,8 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 		addDemoTodos(ooDB);
 
-		const sqlHistory = [
-			`UPDATE todos SET completed = NOT completed`,
-			`SELECT * FROM todos`,
-			`DELETE FROM todos WHERE completed = 1`,
-			`INSERT INTO todos (title) VALUES ('Sketch initial designs for calculating machine.')`,
-		];
-		this._sqlHistory = sqlHistory;
-		this._sqlHistoryIndex = sqlHistory.length;
+		this._sqlHistory = [...sqlHistory];
+		this._sqlHistoryIndex = this._sqlHistory.length;
 
 		this._currentRoute = '';
 	}
