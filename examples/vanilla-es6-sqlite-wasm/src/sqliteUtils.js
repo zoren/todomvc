@@ -28,15 +28,3 @@ export const addStatementTracing = (sqlite3, db, tracers) => {
 		0 // passed in as _ctxPtr
 	);
 };
-
-export const addCommitHook = (sqlite3, db, callback) => {
-	const { capi, wasm } = sqlite3;
-	capi.sqlite3_commit_hook(
-		db,
-		wasm.installFunction('i(p)', (_ctxPtr) => {
-			callback();
-			return 0;
-		}),
-		0
-	);
-};

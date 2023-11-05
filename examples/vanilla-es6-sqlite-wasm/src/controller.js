@@ -1,5 +1,5 @@
 import databaseCreateScript from './create.sql?raw';
-import { addStatementTracing, addCommitHook } from './sqliteUtils.js';
+import { addStatementTracing } from './sqliteUtils.js';
 import View from './view.js';
 
 const selectItemTitle = (db, $id) =>
@@ -123,8 +123,14 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		// this is so we don't update multiple times for one transaction
 		// do it on a timeout so it happens after the hook returns
 		// otherwise the hook can fail when refreshViewItemTotalStatus runs a select
-		addCommitHook(sqlite3, ooDB, () =>
-			setTimeout(this.refreshViewItemTotalStatus)
+		const { capi, wasm } = sqlite3;
+		capi.sqlite3_commit_hook(
+			db,
+			wasm.installFunction('i(p)', (_ctxPtr) => {
+				setTimeout(this.refreshViewItemTotalStatus);
+				return 0;
+			}),
+			0
 		);
 
 		// listen for changes from other browser sessions/tabs
