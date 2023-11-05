@@ -211,9 +211,10 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 					`SELECT rowid, title, completed FROM todos WHERE completed = $completed`,
 					{ $completed: this.isCompletedRoute() }
 			  );
-		const items = rawItems.map((item) => ({
-			...item,
-			completed: !!item.completed,
+		const items = rawItems.map(({ rowid, title, completed }) => ({
+			id: rowid,
+			title,
+			completed: !!completed,
 		}));
 		this.view.showItems(items);
 	};
