@@ -307,8 +307,8 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 
 	evalSQL = (sql) => {
 		if (!sql) return;
+		const sqlHistory = this._sqlHistory;
 		try {
-			const sqlHistory = this._sqlHistory;
 			this.view.appendSQLTrace(this.ooDB.selectObjects(sql));
 			// only add to history if it's different from the last one
 			if (sql !== sqlHistory.at(-1)) sqlHistory.push(sql);
