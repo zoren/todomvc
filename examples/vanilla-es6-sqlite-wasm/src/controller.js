@@ -1,8 +1,5 @@
 import View from './view.js';
 
-const selectItemTitle = (db, $id) =>
-	db.selectValue(`SELECT title FROM todos WHERE rowid = $id`, { $id });
-
 const addDemoTodos = (ooDB) => {
 	const davincisTodos = [
 		{ $title: 'Design a new flying machine concept.', $completed: true },
@@ -117,21 +114,27 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 	BEGIN SELECT updated_title_fn(new.rowid, new.title); END`);
 
 		// update item completion status trigger
-		this.ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completedInt) => {
-			const completed = !!completedInt;
-			if (this.isAllRoute()) {
-				this.view.setItemComplete(id, completed);
-			} else {
-				// add/remove item if it should be visible in the current route
-				if (completed === this.isCompletedRoute())
-					this.view.addItem({
-						id,
-						title: selectItemTitle(this.ooDB, id),
-						completed,
-					});
-				else this.view.removeItem(id);
+		this.ooDB.createFunction(
+			'updated_completed_fn',
+			(_ctxPtr, id, completedInt) => {
+				const completed = !!completedInt;
+				if (this.isAllRoute()) {
+					this.view.setItemComplete(id, completed);
+				} else {
+					// add/remove item if it should be visible in the current route
+					if (completed === this.isCompletedRoute())
+						this.view.addItem({
+							id,
+							title: this.ooDB.selectValue(
+								`SELECT title FROM todos WHERE rowid = $id`,
+								{ $id: id }
+							),
+							completed,
+						});
+					else this.view.removeItem(id);
+				}
 			}
-		});
+		);
 
 		this.ooDB.exec(`
 CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
@@ -256,8 +259,13 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 	 *
 	 * @param {!number} id ID of the Item in edit
 	 */
-	editItemCancel = (id) =>
-		this.view.editItemDone(id, selectItemTitle(this.ooDB, id));
+	editItemCancel = ($id) =>
+		this.view.editItemDone(
+			$id,
+			this.ooDB.selectValue(`SELECT title FROM todos WHERE rowid = $id`, {
+				$id,
+			})
+		);
 
 	/**
 	 * Remove the data and elements related to an Item.
