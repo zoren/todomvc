@@ -83,8 +83,8 @@ CREATE INDEX IF NOT EXISTS completed_index ON todos (completed);`);
 			'inserted_item_fn',
 			(_ctxPtr, id, title, completedInt) => {
 				this.view.clearNewTodo();
-				// add item if it should be visible in the current route
 				const completed = !!completedInt;
+				// add item if it should be visible in the current route
 				if (this.isAllRoute() || completed === this.isCompletedRoute())
 					this.view.addItem({ id, title, completed });
 			}
