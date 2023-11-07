@@ -2,7 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build --base=examples/todomvsqlite/dist/ ",
+    "build": "vite build --base=/examples/todomvsqlite/dist/ ",
     "preview": "vite preview"
   },
   "dependencies": {
