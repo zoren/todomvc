@@ -16,6 +16,8 @@
 				overflow: auto;
 				font-size: small;
 				color: #33ff00;
+				bottom:0px;
+				position:fixed;
 			}
 			.sql-trace {
 				margin-top: auto;
@@ -68,12 +70,6 @@
 				</footer>
 			</section>
 		</section>
-		<form class="sql-console">
-			<output class="sql-trace"></output>
-			<input class="sql-input"
-						placeholder="enter SQL here, run it using Enter, use up and down arrows for history"
-						spellcheck="false">
-		</form>
 		<footer class="info">
 			<p>Double-click to edit a todo</p>
 			<p>Written by <a href="http://twitter.com/lukeed05">Luke Edwards</a></p>
@@ -81,6 +77,12 @@
 			<p>SQLited by <a href="https://zoren.dk/">Søren Sjørup</a></p>
 			<p>Part of <a href="http://todomvc.com">TodoMVC</a></p>
 		</footer>
+		<form class="sql-console">
+			<output class="sql-trace"></output>
+			<input class="sql-input"
+						placeholder="enter SQL here, run it using Enter, use up and down arrows for history"
+						spellcheck="false">
+		</form>
 		<script type="module" src="src/app.js"></script>
 		<script src="node_modules/todomvc-common/base.js"></script>
 		<link rel="stylesheet" href="node_modules/todomvc-common/base.css">
