@@ -3,7 +3,6 @@ import { $on } from './helpers.js';
 import Template from './template.js';
 import View from './view.js';
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
-import 'todomvc-common/base.js';
 
 const main = async () => {
 	const template = new Template();
