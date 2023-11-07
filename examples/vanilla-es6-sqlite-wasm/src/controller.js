@@ -51,12 +51,11 @@ export default class Controller {
 
 		const { capi, wasm, oo1 } = sqlite3;
 
-		const ooDB = new oo1.JsStorageDb('local');
-		this.ooDB = ooDB;
+		this.ooDB = new oo1.JsStorageDb('local');
 
 		// add tracing before we run the create script so the trace shows it running
 		capi.sqlite3_trace_v2(
-			ooDB,
+			this.ooDB,
 			capi.SQLITE_TRACE_STMT,
 			wasm.installFunction(
 				'i(ippp)',
@@ -72,20 +71,18 @@ export default class Controller {
 			0 // passed in as _ctxPtr
 		);
 
-		ooDB.exec(`
+		this.ooDB.exec(`
 CREATE TABLE IF NOT EXISTS todos (
 	title TEXT NOT NULL,
 	completed INTEGER NOT NULL DEFAULT 0,
-	CHECK (title <> ''), -- empty titles are not alliowed in TodoMVC
-	CHECK (completed IN (0, 1)) -- SQLite uses 0 and 1 for booleans, let check they are
+	CHECK (title <> ''),
+	CHECK (completed IN (0, 1))
 );
 
--- we will need to filter on completed so we create an index
-CREATE INDEX IF NOT EXISTS completed_index ON todos (completed);		
-		`);
+CREATE INDEX IF NOT EXISTS completed_index ON todos (completed);`);
 
 		// insert item trigger
-		ooDB.createFunction(
+		this.ooDB.createFunction(
 			'inserted_item_fn',
 			(_ctxPtr, id, title, completedInt) => {
 				this.view.clearNewTodo();
@@ -96,31 +93,31 @@ CREATE INDEX IF NOT EXISTS completed_index ON todos (completed);
 			}
 		);
 
-		ooDB.exec(`
+		this.ooDB.exec(`
 CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
 	BEGIN SELECT inserted_item_fn(new.rowid, new.title, new.completed); END`);
 
 		// delete item trigger
-		ooDB.createFunction('deleted_item_fn', (_ctxPtr, id) =>
+		this.ooDB.createFunction('deleted_item_fn', (_ctxPtr, id) =>
 			this.view.removeItem(id)
 		);
 
-		ooDB.exec(`
+		this.ooDB.exec(`
 CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
 	BEGIN SELECT deleted_item_fn(old.rowid); END`);
 
 		// update item title trigger
-		ooDB.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
+		this.ooDB.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
 			this.view.editItemDone(id, title)
 		);
 
-		ooDB.exec(`
+		this.ooDB.exec(`
 CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 	WHEN old.title <> new.title
 	BEGIN SELECT updated_title_fn(new.rowid, new.title); END`);
 
 		// update item completion status trigger
-		ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completedInt) => {
+		this.ooDB.createFunction('updated_completed_fn', (_ctxPtr, id, completedInt) => {
 			const completed = !!completedInt;
 			if (this.isAllRoute()) {
 				this.view.setItemComplete(id, completed);
@@ -129,14 +126,14 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 				if (completed === this.isCompletedRoute())
 					this.view.addItem({
 						id,
-						title: selectItemTitle(ooDB, id),
+						title: selectItemTitle(this.ooDB, id),
 						completed,
 					});
 				else this.view.removeItem(id);
 			}
 		});
 
-		ooDB.exec(`
+		this.ooDB.exec(`
 CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
 	WHEN old.completed <> new.completed
 	BEGIN SELECT updated_completed_fn(new.rowid, new.completed); END`);
@@ -146,7 +143,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 		// we update on a timeout so it happens after the hook returns
 		// otherwise the hook could fail when refreshViewItemTotalStatus runs a select statement
 		capi.sqlite3_commit_hook(
-			ooDB,
+			this.ooDB,
 			wasm.installFunction('i(p)', (_ctxPtr) => {
 				setTimeout(this.refreshViewItemTotalStatus);
 				return 0;
@@ -171,7 +168,7 @@ CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON t
 			}
 		});
 
-		addDemoTodos(ooDB);
+		addDemoTodos(this.ooDB);
 
 		this._sqlHistory = [...sqlHistory];
 		this._sqlHistoryIndex = this._sqlHistory.length;
