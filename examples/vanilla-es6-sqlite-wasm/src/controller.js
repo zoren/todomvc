@@ -92,7 +92,7 @@ CREATE INDEX IF NOT EXISTS completed_index ON todos (completed);`);
 
 		this.ooDB.exec(`
 CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
-	BEGIN SELECT inserted_item_fn(new.rowid, new.title, new.completed); END`);
+  BEGIN SELECT inserted_item_fn(new.rowid, new.title, new.completed); END`);
 
 		// delete item trigger
 		this.ooDB.createFunction('deleted_item_fn', (_ctxPtr, id) =>
@@ -101,7 +101,7 @@ CREATE TEMPORARY TRIGGER insert_trigger AFTER INSERT ON todos
 
 		this.ooDB.exec(`
 CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
-	BEGIN SELECT deleted_item_fn(old.rowid); END`);
+  BEGIN SELECT deleted_item_fn(old.rowid); END`);
 
 		// update item title trigger
 		this.ooDB.createFunction('updated_title_fn', (_ctxPtr, id, title) =>
@@ -109,9 +109,10 @@ CREATE TEMPORARY TRIGGER delete_trigger AFTER DELETE ON todos
 		);
 
 		this.ooDB.exec(`
-CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
-	WHEN old.title <> new.title
-	BEGIN SELECT updated_title_fn(new.rowid, new.title); END`);
+CREATE TEMPORARY TRIGGER update_title_trigger
+  AFTER UPDATE OF title ON todos
+  WHEN old.title <> new.title
+  BEGIN SELECT updated_title_fn(new.rowid, new.title); END`);
 
 		// update item completion status trigger
 		this.ooDB.createFunction(
@@ -137,9 +138,10 @@ CREATE TEMPORARY TRIGGER update_title_trigger AFTER UPDATE OF title ON todos
 		);
 
 		this.ooDB.exec(`
-CREATE TEMPORARY TRIGGER update_completed_trigger AFTER UPDATE OF completed ON todos
-	WHEN old.completed <> new.completed
-	BEGIN SELECT updated_completed_fn(new.rowid, new.completed); END`);
+CREATE TEMPORARY TRIGGER update_completed_trigger
+  AFTER UPDATE OF completed ON todos
+  WHEN old.completed <> new.completed
+  BEGIN SELECT updated_completed_fn(new.rowid, new.completed); END`);
 
 		// add a commit hook not a trigger to update the item counts
 		// this is so we don't update multiple times for one transaction
