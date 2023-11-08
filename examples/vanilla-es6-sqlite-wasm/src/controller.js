@@ -143,35 +143,27 @@ CREATE TEMPORARY TRIGGER update_completed_trigger
   WHEN old.completed <> new.completed
   BEGIN SELECT updated_completed_fn(new.rowid, new.completed); END`);
 
+		const commitChannel = new BroadcastChannel('localStorageCommit');
+
+		// listen for changes from other browser sessions/tabs
+		commitChannel.addEventListener('message', this.reloadView);
+
 		// add a commit hook not a trigger to update the item counts
 		// this is so we don't update multiple times for one transaction
 		// we update on a timeout so it happens after the hook returns
 		// otherwise the hook could fail when refreshViewItemTotalStatus runs a select statement
 		capi.sqlite3_commit_hook(
 			this.ooDB,
-			wasm.installFunction('i(p)', (_ctxPtr) => {
-				setTimeout(this.refreshViewItemTotalStatus);
+			wasm.installFunction('i(p)', () => {
+				setTimeout(() => {
+					this.refreshViewItemTotalStatus();
+					// broadcast a message to other browser sessions/tabs notifying them of the commit
+					commitChannel.postMessage(null);
+				});
 				return 0;
 			}),
 			0
 		);
-
-		// listen for changes from other browser sessions/tabs
-		window.addEventListener('storage', (event) => {
-			// in journal_mode = DELETE the last thing SQLite when committing is to delete the journal
-			// so we can use that as a signal that another session has committed
-			// relying on 'kvvfs-local-jrnl' is brittle
-			// but a kind expert on the SQLite forum assured us that it the key is very unlikely to change:
-			// https://sqlite.org/forum/forumpost/d8defe9070
-			if (
-				event.storageArea === window.localStorage &&
-				event.key === 'kvvfs-local-jrnl' &&
-				event.newValue === null
-			) {
-				// we don't know what changed, so just reload the entire view
-				this.reloadView();
-			}
-		});
 
 		addDemoTodos(this.ooDB);
 
